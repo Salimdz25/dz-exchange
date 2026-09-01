@@ -1,0 +1,5 @@
+@import "tailwindcss";
+
+[dir="rtl"] {
+  font-family: 'Cairo', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
