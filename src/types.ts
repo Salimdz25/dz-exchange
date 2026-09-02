@@ -15,7 +15,7 @@ export interface CurrencyItem {
   country: string;
   official: RateDetails;
   parallel?: RateDetails; // Square Port-Said
-  unit?: number; // 1 or 100 (for JPY, etc.)
+  unit?: number; // 1 or 100
 }
 
 export interface VirtualNeobankItem {
@@ -26,15 +26,26 @@ export interface VirtualNeobankItem {
   currencySymbol: string;
   logo: string;
   badgeColor: string;
-  buyDzd: number; // Prix achat en DZD (le client achète)
-  sellDzd: number; // Prix vente en DZD (le client vend)
+  buyDzd: number; // Prix achat en DZD
+  sellDzd: number; // Prix vente en DZD
   change24h: number;
-  paymentMethods: string[]; // ['BaridiMob', 'CCP', 'Main à main']
+  paymentMethods: string[];
   minTransaction: string;
   avgTransferTime: string;
   popularUse: string;
   notes: string;
   rating: number;
+  labelType?: 'observed' | 'estimated' | 'p2p';
+}
+
+export interface GoldRateItem {
+  carat: number; // 24, 22, 21, 18
+  name: string;
+  nameAr: string;
+  pricePerGramDzd: number;
+  buyPerGramDzd?: number;
+  change24h: number;
+  basis: 'observed' | 'official_est' | 'parallel_est';
 }
 
 export interface RegionalMarket {
@@ -73,8 +84,11 @@ export interface MarketInsight {
 export interface ApiResponse {
   timestamp: string;
   lastUpdatedFormatted: string;
+  sourceName?: string;
+  isVerified?: boolean;
   currencies: CurrencyItem[];
   virtualRates: VirtualNeobankItem[];
+  goldRates: GoldRateItem[];
   regionalMarkets: RegionalMarket[];
   historical: HistoricalDataPoint[];
   insights: MarketInsight[];
@@ -104,4 +118,3 @@ export interface RateAlert {
   createdAt: number;
   triggered: boolean;
 }
-

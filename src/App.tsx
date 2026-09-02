@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ApiResponse, RateAlert } from './types';
 import { Navbar } from './components/Navbar';
-import { MarketHeroCards } from './components/MarketHeroCards';
+import { SideMenu } from './components/SideMenu';
+import { MainTabs, MainTabType } from './components/MainTabs';
+import { UpdateStrip } from './components/UpdateStrip';
+import { RateList } from './components/RateList';
+import { TopAdSlot, BottomAdSlot } from './components/AdSlots';
+import { ShareSheetModal } from './components/ShareSheetModal';
+import { InfoDialogModal } from './components/InfoDialogModal';
+import { GoldCalculatorModal } from './components/GoldCalculatorModal';
 import { MultiMarketConverter } from './components/MultiMarketConverter';
-import { RatesTable } from './components/RatesTable';
-import { HistoricalChartSection } from './components/HistoricalChartSection';
-import { VirtualNeobanksSection } from './components/VirtualNeobanksSection';
-import { RegionalSquareMarkets } from './components/RegionalSquareMarkets';
-import { MarketInsightsAndGuide } from './components/MarketInsightsAndGuide';
-import { ShareBulletinModal } from './components/ShareBulletinModal';
 import { RateAlertsModal } from './components/RateAlertsModal';
-import { RateAlertBanner } from './components/RateAlertBanner';
-import { ThreePillarsSummary } from './components/ThreePillarsSummary';
-import { AlertCircle, Sparkles, Layers, ChevronDown, ChevronUp } from 'lucide-react';
+import { HistoricalChartSection } from './components/HistoricalChartSection';
+import { MarketInsightsAndGuide } from './components/MarketInsightsAndGuide';
+import { AboutAndPrivacyModal } from './components/AboutAndPrivacyModal';
 import { Language, translations } from './utils/translations';
 import { getRateForAlert } from './utils/rateUtils';
+import { AlertCircle, X } from 'lucide-react';
 
 const ALERTS_STORAGE_KEY = 'dinardz_rate_alerts';
 const SOUND_STORAGE_KEY = 'dinardz_sound_enabled';
@@ -25,13 +27,15 @@ export default function App() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>('EUR');
-  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
-  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState<boolean>(false);
-  const [refreshNotification, setRefreshNotification] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
+  const [activeTab, setActiveTab] = useState<MainTabType>('parallel');
+  const [isSideMenuOpen, setIsSideMenuOpen] = useState<boolean>(false);
 
-  // Theme state: 'light' or 'dark'
+  // Modals state
+  const [activeModal, setActiveModal] = useState<'converter' | 'gold_calc' | 'history' | 'alerts' | 'news' | 'about' | 'privacy' | 'methodology' | null>(null);
+  const [isHelpInfoOpen, setIsHelpInfoOpen] = useState<boolean>(false);
+  const [shareSheetData, setShareSheetData] = useState<{ title: string; text: string } | null>(null);
+
+  // Theme state: 'light' or 'dark' (Default: 'light')
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const saved = localStorage.getItem(THEME_STORAGE_KEY);
@@ -54,6 +58,30 @@ export default function App() {
   const t = translations[language];
   const isAr = language === 'ar';
 
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [canInstallPwa, setCanInstallPwa] = useState<boolean>(false);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setCanInstallPwa(true);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallPwa = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        setDeferredPrompt(null);
+        setCanInstallPwa(false);
+      });
+    }
+  };
+
   const handleToggleLanguage = () => {
     setLanguage(prev => prev === 'fr' ? 'ar' : 'fr');
   };
@@ -62,14 +90,12 @@ export default function App() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Persist theme
   useEffect(() => {
     try {
       localStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch (e) {}
   }, [theme]);
 
-  // Persist language
   useEffect(() => {
     try {
       localStorage.setItem(LANG_STORAGE_KEY, language);
@@ -80,30 +106,7 @@ export default function App() {
   const [alerts, setAlerts] = useState<RateAlert[]>(() => {
     try {
       const saved = localStorage.getItem(ALERTS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [
-        {
-          id: 'default-alert-eur',
-          currencyCode: 'EUR',
-          marketType: 'parallel',
-          condition: 'above_or_equal',
-          targetRate: 278.0,
-          currentRateAtCreation: 276.0,
-          note: 'Alerte hausse Euro Square Port-Saïd',
-          createdAt: Date.now() - 86400000,
-          triggered: false,
-        },
-        {
-          id: 'default-alert-usdt',
-          currencyCode: 'USDT',
-          marketType: 'virtual',
-          condition: 'above_or_equal',
-          targetRate: 242.0,
-          currentRateAtCreation: 240.5,
-          note: 'Objectif achat USDT P2P BaridiMob',
-          createdAt: Date.now() - 43200000,
-          triggered: true,
-        },
-      ];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
@@ -118,90 +121,23 @@ export default function App() {
     }
   });
 
-  // Persist sound preference
-  useEffect(() => {
-    try {
-      localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(soundEnabled));
-    } catch (e) {}
-  }, [soundEnabled]);
-
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  // Play synthesized chime when alert triggers
-  const playAlertChime = async () => {
-    if (!soundEnabled) return;
-    try {
-      if (!audioContextRef.current) {
-        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          audioContextRef.current = new AudioCtx();
-        }
-      }
-
-      const ctx = audioContextRef.current;
-      if (!ctx) return;
-
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.12); // A5
-      osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.25); // D6
-
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.7);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.75);
-    } catch (e) {
-      console.log('Audio chime not supported or muted', e);
-    }
-  };
-
-  // Persist alerts to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts));
     } catch (e) {}
   }, [alerts]);
 
-  // Evaluate alerts against fresh data
   const evaluateAlerts = (currentData: ApiResponse) => {
-    let hasNewlyTriggered = false;
-
-    setAlerts((prevAlerts) => {
-      const updated = prevAlerts.map((alert) => {
+    setAlerts((prevAlerts) =>
+      prevAlerts.map((alert) => {
         const currentRate = getRateForAlert(currentData, alert.currencyCode, alert.marketType);
-
         const meetsCondition =
           alert.condition === 'above_or_equal'
             ? currentRate >= alert.targetRate
             : currentRate <= alert.targetRate;
-
-        if (meetsCondition && !alert.triggered) {
-          hasNewlyTriggered = true;
-        }
-
-        return {
-          ...alert,
-          triggered: meetsCondition,
-        };
-      });
-
-      return updated;
-    });
-
-    if (hasNewlyTriggered) {
-      setTimeout(() => playAlertChime(), 100);
-    }
+        return { ...alert, triggered: meetsCondition };
+      })
+    );
   };
 
   const fetchRates = async (isManual = false) => {
@@ -216,13 +152,9 @@ export default function App() {
       const payload: ApiResponse = isManual ? json.data : json;
       setData(payload);
       evaluateAlerts(payload);
-      if (isManual) {
-        setRefreshNotification(isAr ? 'تم تحديث الأسعار بنجاح !' : 'Taux actualisés avec succès !');
-        setTimeout(() => setRefreshNotification(null), 3000);
-      }
     } catch (err: any) {
       console.error(err);
-      setError(isAr ? 'حدث خطأ أثناء مزامنة البيانات. يرجى إعادة المحاولة.' : 'Erreur lors de la synchronisation des données. Veuillez réessayer.');
+      setError(isAr ? 'حدث خطأ أثناء مزامنة البيانات. يرجى إعادة المحاولة.' : 'Erreur de synchronisation des données.');
     } finally {
       setIsLoading(false);
     }
@@ -230,200 +162,216 @@ export default function App() {
 
   useEffect(() => {
     fetchRates();
-
-    // Auto-cleanup for old default alerts that are causing confusion
-    setAlerts(prev => prev.filter(alert => {
-      const isOldDefaultEur = alert.id === 'default-alert-eur' && alert.targetRate < 260;
-      return !isOldDefaultEur;
-    }));
   }, []);
 
-  const handleAddAlert = (newAlertData: Omit<RateAlert, 'id' | 'createdAt' | 'triggered'>) => {
-    const newAlert: RateAlert = {
-      ...newAlertData,
-      id: `alert-${Date.now()}`,
-      createdAt: Date.now(),
-      triggered: false,
-    };
-    setAlerts((prev) => [newAlert, ...prev]);
-    if (data) {
-      evaluateAlerts(data);
+  const handleShareRow = (title: string, text: string) => {
+    if (navigator.share) {
+      navigator.share({ title, text }).catch(() => {
+        setShareSheetData({ title, text });
+      });
+    } else {
+      setShareSheetData({ title, text });
     }
   };
-
-  const handleDeleteAlert = (id: string) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  const handleDismissTriggeredAlert = (id: string) => {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, triggered: false } : a)));
-  };
-
-  const handleTestTriggerAlert = (id: string) => {
-    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, triggered: true } : a)));
-    playAlertChime();
-  };
-
-  const handleClearAllAlerts = () => {
-    if (window.confirm(isAr ? 'هل تريد حذف جميع التنبيهات؟' : 'Voulez-vous supprimer toutes les alertes ?')) {
-      setAlerts([]);
-    }
-  };
-
-  const handleToggleSound = () => {
-    setSoundEnabled(prev => !prev);
-  };
-
-  const handleSelectForConvert = (currencyCode: string) => {
-    setSelectedCurrencyCode(currencyCode);
-    const elem = document.getElementById('multi-market-converter');
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleScrollToConverter = () => {
-    const elem = document.getElementById('multi-market-converter');
-    if (elem) {
-      elem.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const triggeredAlerts = alerts.filter((a) => a.triggered);
 
   return (
     <div
       dir={isAr ? 'rtl' : 'ltr'}
       lang={language}
-      className={`min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-500 ${
+      className={`min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-300 ${
         theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
-      } ${isAr ? 'font-sans' : 'font-sans'}`}
+      } font-sans antialiased`}
     >
+      {/* 1. Compact App Bar */}
       <Navbar
-        data={data}
         isLoading={isLoading}
         theme={theme}
-        onToggleTheme={handleToggleTheme}
-        onRefresh={() => fetchRates(true)}
-        onOpenShareModal={() => setIsShareModalOpen(true)}
-        onScrollToConverter={handleScrollToConverter}
-        onOpenAlertsModal={() => setIsAlertsModalOpen(true)}
-        alertsCount={alerts.length}
-        triggeredCount={triggeredAlerts.length}
-        viewMode={viewMode}
-        onToggleViewMode={() => setViewMode(v => v === 'simple' ? 'detailed' : 'simple')}
         language={language}
-        onToggleLanguage={handleToggleLanguage}
+        onOpenMenu={() => setIsSideMenuOpen(true)}
+        onRefresh={() => fetchRates(true)}
       />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
+      {/* 2. Four Primary Horizontal Tabs */}
+      <MainTabs
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
+        language={language}
+        theme={theme}
+      />
+
+      {/* Main Container */}
+      <main className="flex-1 w-full max-w-xl mx-auto px-3 sm:px-4 py-3">
+        {/* Error notification if any */}
         {error && (
-          <div className={`mb-8 p-4 rounded-3xl border text-sm flex items-center justify-between gap-4 backdrop-blur-sm ${
+          <div className={`mb-3 p-3 rounded-2xl border text-xs flex items-center justify-between gap-2 ${
             theme === 'dark' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600'
           }`}>
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5" />
-              <span className="font-bold">{error}</span>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{error}</span>
             </div>
-            <button onClick={() => fetchRates(true)} className="px-4 py-2 rounded-xl bg-rose-500 text-white text-xs font-black uppercase">
-              {isAr ? 'إعادة' : 'Retry'}
+            <button onClick={() => fetchRates(true)} className="px-3 py-1 rounded-xl bg-rose-500 text-white font-bold text-[10px] uppercase">
+              {isAr ? 'إعادة' : 'Réessayer'}
             </button>
           </div>
         )}
 
-        <RateAlertBanner
-          data={data}
-          triggeredAlerts={triggeredAlerts}
-          onDismissAlert={handleDismissTriggeredAlert}
-          onOpenAlertsModal={() => setIsAlertsModalOpen(true)}
-          language={language}
-        />
+        {/* 3. Last-Update Information Strip */}
+        <UpdateStrip data={data} language={language} theme={theme} />
 
-        {/* HERO: Essential Rates */}
-        <div className="mb-12">
-          <ThreePillarsSummary
+        {/* 4. Top Advertising Slot */}
+        <TopAdSlot language={language} theme={theme} />
+
+        {/* 5. Rate List (Main Content for Active Tab) */}
+        {data ? (
+          <RateList
+            activeTab={activeTab}
             data={data}
-            theme={theme}
-            onSelectCurrency={(code) => handleSelectForConvert(code)}
             language={language}
+            theme={theme}
+            onShareRow={handleShareRow}
+            onOpenHelpDialog={() => setIsHelpInfoOpen(true)}
+            onOpenGoldCalculator={() => setActiveModal('gold_calc')}
           />
-        </div>
-
-        {/* MAIN TOOL: Converter */}
-        <MultiMarketConverter
-          data={data}
-          theme={theme}
-          selectedCurrencyCode={selectedCurrencyCode}
-          onCurrencyChange={(code) => setSelectedCurrencyCode(code)}
-          language={language}
-        />
-
-        {/* PROGRESSIVE DISCLOSURE: Detailed Sections */}
-        {viewMode === 'detailed' && data ? (
-          <div className={`space-y-12 animate-fadeIn mt-12 pt-12 border-t ${theme === 'dark' ? 'border-slate-900' : 'border-slate-200'}`}>
-            <MarketHeroCards data={data} theme={theme} onSelectForConvert={handleSelectForConvert} language={language} />
-            <RatesTable data={data} theme={theme} onSelectCurrency={handleSelectForConvert} language={language} />
-            <HistoricalChartSection data={data} theme={theme} language={language} />
-            <VirtualNeobanksSection data={data} theme={theme} onSelectForConvert={handleSelectForConvert} language={language} />
-            <RegionalSquareMarkets markets={data.regionalMarkets} theme={theme} language={language} />
-            <MarketInsightsAndGuide insights={data.insights} theme={theme} language={language} />
-          </div>
-        ) : viewMode === 'simple' && (
-          <div className="flex justify-center mt-12">
-            <button
-              onClick={() => setViewMode('detailed')}
-              className={`group flex flex-col items-center gap-4 py-8 px-12 rounded-[2.5rem] border transition-all ${
-                theme === 'dark' ? 'bg-slate-900/50 border-slate-800 hover:border-emerald-500/30' : 'bg-white border-slate-200 shadow-xl hover:border-emerald-500/50'
-              }`}
-            >
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
-                theme === 'dark' ? 'bg-slate-950 text-emerald-500' : 'bg-emerald-500 text-white'
-              } group-hover:scale-110`}>
-                <ChevronDown className="w-8 h-8" />
-              </div>
-              <div className="text-center">
-                <p className={`text-sm font-black uppercase tracking-widest mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t.btnShowDetails}</p>
-                <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">{t.moreDetailsDesc.split('(')[0]}</p>
-              </div>
-            </button>
+        ) : (
+          <div className="py-20 text-center text-slate-400 font-bold text-xs">
+            {isLoading ? (isAr ? 'جاري تحميل الأسعار...' : 'Chargement des cours en direct...') : (isAr ? 'لا توجد بيانات' : 'Données indisponibles')}
           </div>
         )}
+
+        {/* 6. Bottom Advertising Slot */}
+        <BottomAdSlot language={language} theme={theme} />
       </main>
 
-      <footer className={`mt-20 border-t py-12 px-6 ${theme === 'dark' ? 'border-slate-900' : 'border-slate-200'}`}>
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="DZ EXCHANGE" className="w-8 h-8 rounded-lg opacity-80" onError={(e) => (e.currentTarget.style.display = 'none')} />
-            <div>
-              <p className={`font-black uppercase tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>DZ EXCHANGE</p>
-              <p className="text-[10px] font-bold text-slate-500">{t.footerRights.split('•')[1]}</p>
-            </div>
-          </div>
-          <p className="text-[10px] leading-relaxed text-center md:text-right max-w-md font-medium text-slate-500">{t.footerDisclaimer}</p>
-        </div>
+      {/* Minimal Footer Area */}
+      <footer className={`py-6 px-4 border-t text-center text-[10px] font-semibold text-slate-400 ${
+        theme === 'dark' ? 'border-slate-900 bg-slate-950/80' : 'border-slate-200 bg-white/80'
+      }`}>
+        <p className="mb-1">DZ EXCHANGE • Taux de Change Algérie</p>
+        <p className="opacity-60">{isAr ? 'جميع حقوق النشر محفوظة' : 'Données indicatives issues des observations du marché'}</p>
       </footer>
 
-      {/* Share Bulletin Modal */}
-      <ShareBulletinModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        data={data}
+      {/* Side Drawer Menu */}
+      <SideMenu
+        isOpen={isSideMenuOpen}
+        onClose={() => setIsSideMenuOpen(false)}
         language={language}
+        onToggleLanguage={handleToggleLanguage}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onOpenModal={(modal) => setActiveModal(modal)}
+        onInstallPwa={handleInstallPwa}
+        canInstallPwa={canInstallPwa}
       />
+
+      {/* Achat vs Vente Info Dialog Modal */}
+      <InfoDialogModal
+        isOpen={isHelpInfoOpen}
+        onClose={() => setIsHelpInfoOpen(false)}
+        language={language}
+        theme={theme}
+      />
+
+      {/* Share Sheet Modal */}
+      <ShareSheetModal
+        isOpen={!!shareSheetData}
+        onClose={() => setShareSheetData(null)}
+        title={shareSheetData?.title || ''}
+        shareText={shareSheetData?.text || ''}
+        language={language}
+        theme={theme}
+      />
+
+      {/* Gold Calculator Modal */}
+      <GoldCalculatorModal
+        isOpen={activeModal === 'gold_calc'}
+        onClose={() => setActiveModal(null)}
+        goldRates={data?.goldRates || []}
+        language={language}
+        theme={theme}
+      />
+
+      {/* Converter Modal */}
+      {activeModal === 'converter' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className={`relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl p-2 border ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <button
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-500/10 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <MultiMarketConverter
+              data={data}
+              theme={theme}
+              selectedCurrencyCode="EUR"
+              onCurrencyChange={() => {}}
+              language={language}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Rate Alerts Modal */}
       <RateAlertsModal
-        isOpen={isAlertsModalOpen}
-        onClose={() => setIsAlertsModalOpen(false)}
+        isOpen={activeModal === 'alerts'}
+        onClose={() => setActiveModal(null)}
         data={data}
         alerts={alerts}
-        onAddAlert={handleAddAlert}
-        onDeleteAlert={handleDeleteAlert}
-        onClearAllAlerts={handleClearAllAlerts}
-        onTestTriggerAlert={handleTestTriggerAlert}
+        onAddAlert={(newAlert) => {
+          const alertItem: RateAlert = { ...newAlert, id: `alert-${Date.now()}`, createdAt: Date.now(), triggered: false };
+          setAlerts(prev => [alertItem, ...prev]);
+        }}
+        onDeleteAlert={(id) => setAlerts(prev => prev.filter(a => a.id !== id))}
+        onClearAllAlerts={() => setAlerts([])}
+        onTestTriggerAlert={(id) => setAlerts(prev => prev.map(a => a.id === id ? { ...a, triggered: true } : a))}
         soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
+        onToggleSound={() => setSoundEnabled(v => !v)}
         language={language}
+      />
+
+      {/* History Modal */}
+      {activeModal === 'history' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className={`relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-4 border ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <button
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-500/10 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <HistoricalChartSection data={data} theme={theme} language={language} />
+          </div>
+        </div>
+      )}
+
+      {/* News & Guide Modal */}
+      {activeModal === 'news' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className={`relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl p-4 border ${
+            theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            <button
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-500/10 text-slate-400 hover:text-slate-900 dark:hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <MarketInsightsAndGuide insights={data?.insights || []} theme={theme} language={language} />
+          </div>
+        </div>
+      )}
+
+      {/* About & Privacy Modals */}
+      <AboutAndPrivacyModal
+        type={activeModal === 'about' ? 'about' : activeModal === 'privacy' ? 'privacy' : activeModal === 'methodology' ? 'methodology' : null}
+        onClose={() => setActiveModal(null)}
+        language={language}
+        theme={theme}
       />
     </div>
   );
