@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calculator, Coins } from 'lucide-react';
+import { X, Calculator } from 'lucide-react';
 import { GoldRateItem } from '../types';
 import { Language, translations } from '../utils/translations';
 import { formatDZD } from '../utils/formatters';
@@ -26,9 +26,10 @@ export const GoldCalculatorModal: React.FC<GoldCalculatorModalProps> = ({
   const isDark = theme === 'dark';
 
   const [grams, setGrams] = useState<number>(10);
-  const [selectedCarat, setSelectedCarat] = useState<number>(24);
+  // Default to 18 Carats as primary reference in Algeria
+  const [selectedCarat, setSelectedCarat] = useState<number>(18);
 
-  const selectedRate = goldRates.find((g) => g.carat === selectedCarat) || goldRates[0] || { pricePerGramDzd: 32660 };
+  const selectedRate = goldRates.find((g) => g.carat === selectedCarat) || goldRates[0] || { pricePerGramDzd: 24500 };
   const totalValueDzd = grams * selectedRate.pricePerGramDzd;
 
   return (
@@ -43,7 +44,7 @@ export const GoldCalculatorModal: React.FC<GoldCalculatorModalProps> = ({
             </div>
             <div>
               <h3 className="font-black text-base uppercase tracking-tight">{isAr ? 'حاسبة أسعار الذهب' : 'Calculateur d\'Or'}</h3>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">{isAr ? 'حساب القيمة بالدينار الجزائري' : 'Estimation de la valeur en DZD'}</p>
+              <p className="text-[10px] text-slate-500 font-bold uppercase">{isAr ? 'حساب القيمة بالدينار الجزائري (عيار 18 مرجع)' : 'Estimation de la valeur en DZD (18K Réf)'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-500/10 text-slate-400">
@@ -52,13 +53,13 @@ export const GoldCalculatorModal: React.FC<GoldCalculatorModalProps> = ({
         </div>
 
         <div className="space-y-5">
-          {/* Carat Selector */}
+          {/* Carat Selector - 18 Carats FIRST */}
           <div>
             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-              {isAr ? 'اختر العيار :' : 'Sélectionner le Titre (Carat) :'}
+              {isAr ? 'اختر عيار الذهب (18 قيراط مرجع الجزائر) :' : 'Sélectionner le Titre (18 Carats Réf) :'}
             </label>
             <div className="grid grid-cols-4 gap-2">
-              {[24, 22, 21, 18].map((carat) => (
+              {[18, 21, 22, 24].map((carat) => (
                 <button
                   key={carat}
                   onClick={() => setSelectedCarat(carat)}
@@ -68,7 +69,7 @@ export const GoldCalculatorModal: React.FC<GoldCalculatorModalProps> = ({
                       : isDark ? 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  {carat}K
+                  {isAr ? `${carat} قيراط` : `${carat}K`} {carat === 18 ? '⭐' : ''}
                 </button>
               ))}
             </div>
@@ -116,13 +117,13 @@ export const GoldCalculatorModal: React.FC<GoldCalculatorModalProps> = ({
             isDark ? 'bg-amber-500/10 border-amber-500/30' : 'bg-amber-50 border-amber-200 shadow-sm'
           }`}>
             <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">
-              {isAr ? 'Valeur totale estimée' : 'Valeur Totale Estimée'}
+              {isAr ? 'القيمة الإجمالية المقدرة' : 'Valeur Totale Estimée'}
             </p>
             <p className="text-3xl font-black font-mono text-amber-500 my-1">
               {formatDZD(totalValueDzd, language)}
             </p>
             <p className="text-[10px] text-slate-500 font-semibold">
-              {isAr ? `بسعر ${selectedRate.pricePerGramDzd.toLocaleString()} دج / غرام (${selectedCarat} عيار)` : `Basé sur ${selectedRate.pricePerGramDzd.toLocaleString()} DA / gramme (${selectedCarat} Carats)`}
+              {isAr ? `بسعر ${selectedRate.pricePerGramDzd.toLocaleString()} دج / غرام (${selectedCarat} قيراط)` : `Basé sur ${selectedRate.pricePerGramDzd.toLocaleString()} DA / gramme (${selectedCarat} Carats)`}
             </p>
           </div>
         </div>

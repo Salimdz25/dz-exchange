@@ -166,7 +166,7 @@ export const ThreePillarsSummary: React.FC<ThreePillarsSummaryProps> = ({
             <div className={innerBoxClass}>
               <div className="flex items-center justify-between mb-1">
                 <span className={`flex items-center gap-2 ${labelClass}`}>
-                  <span className="flag-emoji text-xl">{getCurrencyAsset('EUR').flag}</span> Euro {eur.code}
+                  <span className="flag-emoji text-xl">{eur.flag}</span> Euro EUR
                 </span>
                 <span className="text-[9px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded uppercase">Fixing</span>
               </div>
@@ -178,7 +178,7 @@ export const ThreePillarsSummary: React.FC<ThreePillarsSummaryProps> = ({
             <div className={innerBoxClass}>
               <div className="flex items-center justify-between mb-1">
                 <span className={`flex items-center gap-2 ${labelClass}`}>
-                  <span className="flag-emoji text-xl">{getCurrencyAsset('USD').flag}</span> Dollar {usd.code}
+                  <span className="flag-emoji text-xl">{usd.flag}</span> Dollar USD
                 </span>
                 <span className="text-[9px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded uppercase">Fixing</span>
               </div>

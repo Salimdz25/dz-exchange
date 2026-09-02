@@ -35,10 +35,10 @@ export const RatesTable: React.FC<RatesTableProps> = ({ data, theme, onSelectCur
   const handleCopyRow = (curr: CurrencyItem) => {
     const asset = getCurrencyAsset(curr.code);
     const text = isAr
-      ? `🇩🇿 [DinarDZ] ${asset.flag} ${curr.code} :
+      ? `🇩🇿 [DZ EXCHANGE] ${asset.flag} ${curr.code} :
 🏙️ السكوار : ${curr.parallel?.sell.toFixed(1)} دج
 🏛️ البنك : ${curr.official.mid?.toFixed(2)} دج`
-      : `🇩🇿 [DinarDZ] ${asset.flag} ${curr.code} :
+      : `🇩🇿 [DZ EXCHANGE] ${asset.flag} ${curr.code} :
 🏙️ Square : ${curr.parallel?.sell.toFixed(1)} DA
 🏛️ Bank : ${curr.official.mid?.toFixed(2)} DA`;
 

@@ -1,5 +1,5 @@
 {
-  "name": "DinarDZ - Taux de Change DZD (Officiel, Parallèle & Virtuel)",
+  "name": "DZ EXCHANGE - Taux de Change DZD (Officiel, Parallèle & Virtuel)",
   "description": "Suivi en temps réel et comparateur des cours du Dinar Algérien (DZD) : Marché officiel (Banque d'Algérie), Marché parallèle (Square Port-Saïd) et Devises virtuelles / Néobanques (USDT, Wise, Paysera, RedotPay).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

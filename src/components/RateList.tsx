@@ -216,8 +216,7 @@ Taux Moyen (Fixing) : ${formatRate(midVal, 2)}`;
     return (
       <div className="w-full space-y-1">
         {data.virtualRates.map((item, index) => {
-          const assetCode = item.id.toUpperCase().includes('USDT') ? 'USDT' : item.id.toUpperCase().includes('USDC') ? 'USD' : item.currency.includes('EUR') ? 'EUR' : 'USD';
-          const asset = getCurrencyAsset(assetCode);
+          const asset = getCurrencyAsset(item.id);
 
           const shareText = isAr
             ? `🇩🇿 [DZ EXCHANGE] ${item.name} (${item.currency}) :
@@ -235,7 +234,7 @@ Prix observé : ${formatRate(item.buyDzd, 2)}`;
                   <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl shrink-0 shadow-xs ${
                     isDark ? 'bg-slate-900 border border-slate-800' : 'bg-slate-100 border border-slate-200'
                   }`}>
-                    <span className="flag-emoji">{item.logo || asset.flag}</span>
+                    {asset.logoSvg ? asset.logoSvg : <span className="flag-emoji">{item.logo || asset.flag}</span>}
                   </div>
                   <div className="truncate">
                     <div className={`font-mono font-black text-base sm:text-lg leading-tight ${textPrimary}`}>
@@ -323,7 +322,7 @@ Prix : ${formatRate(gold.pricePerGramDzd, 0)} par gramme`;
                   </div>
                   <div>
                     <div className={`font-mono font-black text-base sm:text-lg leading-tight ${textPrimary}`}>
-                      {gold.name}
+                      {isAr ? `${gold.carat} قيراط` : gold.name}
                     </div>
                     <div className={`text-[11px] font-bold ${textSecondary}`}>
                       {isAr ? gold.nameAr : 'par gramme'}

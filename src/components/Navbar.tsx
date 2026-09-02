@@ -37,14 +37,14 @@ export const Navbar: React.FC<NavbarProps> = ({
         </button>
 
         {/* Center: Brand */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <img
             src="/logo.png"
             alt="DZ EXCHANGE"
-            className="w-8 h-8 rounded-lg shadow-xs"
+            className="w-9 h-9 rounded-xl shadow-xs object-cover"
             onError={(e) => (e.currentTarget.style.display = 'none')}
           />
-          <h1 className="text-base font-black tracking-tight leading-none">
+          <h1 className="text-lg sm:text-xl font-black tracking-tight leading-none">
             DZ <span className="text-emerald-500">EXCHANGE</span>
           </h1>
         </div>
