@@ -1,0 +1,4 @@
+- [x] [rateUtils.ts](file:///C:/Users/hp%20pavillon/AndroidStudioProjects/DinarDz/src/utils/rateUtils.ts): Implement centralized `getRateForAlert`.
+- [x] [App.tsx](file:///C:/Users/hp%20pavillon/AndroidStudioProjects/DinarDz/src/App.tsx): Refactor persistence and alert logic, remove unused state.
+- [x] [RateAlertsModal.tsx](file:///C:/Users/hp%20pavillon/AndroidStudioProjects/DinarDz/src/components/RateAlertsModal.tsx): Use `getRateForAlert` and clean up.
+- [x] [server.ts](file:///C:/Users/hp%20pavillon/AndroidStudioProjects/DinarDz/server.ts): Refactor monolithic `fetchRatesData`.

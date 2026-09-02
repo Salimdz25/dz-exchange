@@ -5,7 +5,6 @@ import {
   BellRing,
   Plus,
   Trash2,
-  Check,
   AlertTriangle,
   Sparkles,
   TrendingUp,
@@ -18,8 +17,9 @@ import {
   Info,
 } from 'lucide-react';
 import { ApiResponse, RateAlert } from '../types';
-import { formatCentimesAlgerien } from '../utils/formatters';
 import { Language, translations } from '../utils/translations';
+import { getRateForAlert } from '../utils/rateUtils';
+import { getCurrencyAsset } from '../utils/currencyAssets';
 
 interface RateAlertsModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ interface RateAlertsModalProps {
   alerts: RateAlert[];
   onAddAlert: (newAlert: Omit<RateAlert, 'id' | 'createdAt' | 'triggered'>) => void;
   onDeleteAlert: (id: string) => void;
+  onClearAllAlerts: () => void;
   onTestTriggerAlert: (id: string) => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
@@ -41,6 +42,7 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
   alerts,
   onAddAlert,
   onDeleteAlert,
+  onClearAllAlerts,
   onTestTriggerAlert,
   soundEnabled,
   onToggleSound,
@@ -62,29 +64,7 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
 
   if (!isOpen || !data) return null;
 
-  // Helper to get current rate for selection
-  const getCurrentMarketRate = (currCode: string, market: 'parallel' | 'virtual' | 'official'): number => {
-    if (currCode === 'USDT') {
-      return data.stats.usdtP2pRate || 240.5;
-    }
-    if (currCode === 'WISE_EUR') {
-      return data.stats.wiseEurRate || 248.5;
-    }
-    const curr = data.currencies.find((c) => c.code === currCode);
-    if (!curr) return 0;
-
-    if (market === 'parallel') {
-      return curr.parallel?.sell || 0;
-    } else if (market === 'official') {
-      return curr.official.mid || 0;
-    } else {
-      if (currCode === 'USD') return data.stats.usdtP2pRate || 240.5;
-      if (currCode === 'EUR') return data.stats.wiseEurRate || 248.5;
-      return curr.parallel?.sell || 0;
-    }
-  };
-
-  const currentRate = getCurrentMarketRate(selectedCurrency, selectedMarket);
+  const currentRate = getRateForAlert(data, selectedCurrency, selectedMarket);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,13 +86,12 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
   };
 
   const getCurrencyLabel = (code: string) => {
-    if (code === 'USDT') return { flag: '🪙', name: 'USDT Tether', code: 'USDT (₮)' };
-    if (code === 'WISE_EUR') return { flag: '🇪🇺', name: 'Wise Solde Euro', code: 'Wise (€)' };
+    const asset = getCurrencyAsset(code);
     const curr = data.currencies.find((c) => c.code === code);
     return {
-      flag: curr?.flag || '🏳️',
-      name: isAr ? (curr?.nameAr || curr?.name || code) : (curr?.name || code),
-      code: `${curr?.code || code} (${curr?.symbol || ''})`,
+      flag: asset.flag,
+      name: isAr ? (curr?.nameAr || asset.name) : (curr?.name || asset.name),
+      code: `${code} (${curr?.symbol || ''})`,
     };
   };
 
@@ -200,6 +179,16 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
             <Plus className="w-4 h-4" />
             <span>{t.tabCreateAlert}</span>
           </button>
+
+          {alerts.length > 0 && (
+            <button
+              onClick={onClearAllAlerts}
+              className="ml-auto pb-3 px-3 text-[10px] font-black uppercase text-rose-500 hover:text-rose-400 transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{isAr ? 'حذف الكل' : 'Vider la liste'}</span>
+            </button>
+          )}
         </div>
 
         {/* Modal Body */}
@@ -212,24 +201,27 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
                   {t.alertStep1}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {data.currencies.slice(0, 6).map((c) => (
-                    <button
-                      key={c.code}
-                      type="button"
-                      onClick={() => setSelectedCurrency(c.code)}
-                      className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
-                        selectedCurrency === c.code
-                          ? 'bg-emerald-950/90 border-emerald-500 text-white ring-1 ring-emerald-500/50 shadow-md'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'
-                      }`}
-                    >
-                      <span className="text-xl" title={c.country}>{c.flag}</span>
-                      <div className="truncate text-left">
-                        <div className="font-mono font-bold leading-none">{c.code} ({c.symbol})</div>
-                        <div className="text-[10px] text-slate-400 truncate mt-0.5">{isAr ? (c.nameAr || c.name) : c.name}</div>
-                      </div>
-                    </button>
-                  ))}
+                  {data.currencies.slice(0, 6).map((c) => {
+                    const asset = getCurrencyAsset(c.code);
+                    return (
+                      <button
+                        key={c.code}
+                        type="button"
+                        onClick={() => setSelectedCurrency(c.code)}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+                          selectedCurrency === c.code
+                            ? 'bg-emerald-950/90 border-emerald-500 text-white ring-1 ring-emerald-500/50 shadow-md'
+                            : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="flag-emoji text-2xl">{asset.flag}</span>
+                        <div className="truncate text-left">
+                          <div className="font-mono font-bold leading-none">{c.code}</div>
+                          <div className="text-[10px] text-slate-400 truncate mt-0.5">{isAr ? c.nameAr : asset.name}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={() => setSelectedCurrency('USDT')}
@@ -239,10 +231,10 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
                         : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'
                     }`}
                   >
-                    <span className="text-xl">🪙</span>
+                    <span className="flag-emoji text-2xl">{getCurrencyAsset('USDT').flag}</span>
                     <div className="truncate text-left">
-                      <div className="font-mono font-bold leading-none">USDT (₮)</div>
-                      <div className="text-[10px] text-slate-400 truncate mt-0.5">Binance P2P</div>
+                      <div className="font-mono font-bold leading-none">USDT</div>
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5">P2P</div>
                     </div>
                   </button>
                   <button
@@ -254,10 +246,10 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
                         : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'
                     }`}
                   >
-                    <span className="text-xl">🇪🇺</span>
+                    <span className="flag-emoji text-2xl">{getCurrencyAsset('WISE_EUR').flag}</span>
                     <div className="truncate text-left">
-                      <div className="font-mono font-bold leading-none">Wise (€)</div>
-                      <div className="text-[10px] text-slate-400 truncate mt-0.5">Solde Euro</div>
+                      <div className="font-mono font-bold leading-none">Wise</div>
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5">Euro</div>
                     </div>
                   </button>
                 </div>
@@ -434,7 +426,7 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
                 alerts.map((alert) => {
                   const currInfo = getCurrencyLabel(alert.currencyCode);
                   const marketInfo = getMarketLabel(alert.marketType);
-                  const currRate = getCurrentMarketRate(alert.currencyCode, alert.marketType);
+                  const currRate = getRateForAlert(data, alert.currencyCode, alert.marketType);
                   const MarketIcon = marketInfo.icon;
                   const diff = Math.abs(currRate - alert.targetRate);
 
@@ -481,44 +473,33 @@ export const RateAlertsModal: React.FC<RateAlertsModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-slate-900/90 p-3 rounded-xl border border-slate-800/80 text-xs">
-                        <div>
-                          <span className="text-slate-400 text-[11px] block">{t.alertConditionLabel}</span>
-                          <span className="font-semibold text-slate-200 flex items-center gap-1 mt-0.5">
-                            {alert.condition === 'above_or_equal' ? (
-                              <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                            ) : (
-                              <TrendingDown className="w-3.5 h-3.5 text-rose-400" />
-                            )}
-                            <span>{alert.condition === 'above_or_equal' ? '≥ Hausse' : '≤ Baisse'}</span>
+                      <div className="grid grid-cols-2 gap-4 bg-slate-900/90 p-5 rounded-[2rem] border border-slate-800/80 shadow-inner">
+                        <div className="border-r border-slate-800 pr-4 text-center">
+                          <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest block mb-2">Cours Actuel 🟢</span>
+                          <span className="font-mono font-black text-emerald-400 text-3xl block leading-none tracking-tighter">
+                            {currRate.toFixed(1)}
                           </span>
                         </div>
 
-                        <div>
-                          <span className="text-slate-400 text-[11px] block">Seuil Cible :</span>
-                          <span className="font-mono font-bold text-amber-400 text-sm mt-0.5 block">
-                            {alert.targetRate.toFixed(2)} {daUnit}
-                          </span>
-                        </div>
-
-                        <div>
-                          <span className="text-slate-400 text-[11px] block">Cours Actuel :</span>
-                          <span className="font-mono font-bold text-slate-200 text-sm mt-0.5 block">
-                            {currRate.toFixed(2)} {daUnit}
+                        <div className="pl-4 text-center flex flex-col justify-center">
+                          <span className="text-slate-500 text-[9px] font-bold uppercase tracking-widest block mb-1">Votre Seuil 🎯</span>
+                          <span className="font-mono font-bold text-amber-500/80 text-xl block leading-none">
+                            {alert.targetRate.toFixed(1)}
                           </span>
                         </div>
                       </div>
 
+
+
                       {alert.note && (
-                        <p className="text-xs text-slate-400 italic mt-2.5 px-1 flex items-center gap-1.5">
-                          <span className="text-slate-500">📝 Note :</span>
-                          <span>{alert.note}</span>
+                        <p className="text-[10px] text-slate-500 italic mt-2.5 px-1 flex items-center gap-1.5">
+                          <span>📝 {alert.note}</span>
                         </p>
                       )}
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-xs">
-                        <span className="text-slate-400 text-[11px]">
-                          Créée au cours de : <strong className="font-mono text-slate-300">{alert.currentRateAtCreation.toFixed(2)} {daUnit}</strong>
+                      <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
+                        <span className="text-slate-500 font-bold uppercase tracking-tighter">
+                          Créée à : <strong className="font-mono text-slate-400">{alert.currentRateAtCreation.toFixed(2)}</strong>
                         </span>
                         {alert.triggered ? (
                           <span className="inline-flex items-center gap-1 text-rose-400 font-bold text-xs animate-pulse">

@@ -12,23 +12,34 @@ import { ShareBulletinModal } from './components/ShareBulletinModal';
 import { RateAlertsModal } from './components/RateAlertsModal';
 import { RateAlertBanner } from './components/RateAlertBanner';
 import { ThreePillarsSummary } from './components/ThreePillarsSummary';
-import { AlertCircle, RefreshCw, Sparkles, Heart, Shield, Layers, LayoutGrid, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Sparkles, Layers, ChevronDown, ChevronUp } from 'lucide-react';
 import { Language, translations } from './utils/translations';
+import { getRateForAlert } from './utils/rateUtils';
 
 const ALERTS_STORAGE_KEY = 'dinardz_rate_alerts';
 const SOUND_STORAGE_KEY = 'dinardz_sound_enabled';
 const LANG_STORAGE_KEY = 'dinardz_language';
+const THEME_STORAGE_KEY = 'dinardz_theme';
 
 export default function App() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>('EUR');
-  const [selectedMarketType, setSelectedMarketType] = useState<string>('parallel');
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState<boolean>(false);
   const [refreshNotification, setRefreshNotification] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'simple' | 'detailed'>('simple');
+
+  // Theme state: 'light' or 'dark'
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      return (saved === 'dark' || saved === 'light') ? saved : 'light';
+    } catch {
+      return 'light';
+    }
+  });
 
   // Language state: 'fr' or 'ar'
   const [language, setLanguage] = useState<Language>(() => {
@@ -44,12 +55,26 @@ export default function App() {
   const isAr = language === 'ar';
 
   const handleToggleLanguage = () => {
-    const nextLang: Language = language === 'fr' ? 'ar' : 'fr';
-    setLanguage(nextLang);
-    try {
-      localStorage.setItem(LANG_STORAGE_KEY, nextLang);
-    } catch (e) {}
+    setLanguage(prev => prev === 'fr' ? 'ar' : 'fr');
   };
+
+  const handleToggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  // Persist theme
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch (e) {}
+  }, [theme]);
+
+  // Persist language
+  useEffect(() => {
+    try {
+      localStorage.setItem(LANG_STORAGE_KEY, language);
+    } catch (e) {}
+  }, [language]);
 
   // Rate Alerts State
   const [alerts, setAlerts] = useState<RateAlert[]>(() => {
@@ -61,8 +86,8 @@ export default function App() {
           currencyCode: 'EUR',
           marketType: 'parallel',
           condition: 'above_or_equal',
-          targetRate: 253.0,
-          currentRateAtCreation: 252.5,
+          targetRate: 278.0,
+          currentRateAtCreation: 276.0,
           note: 'Alerte hausse Euro Square Port-Saïd',
           createdAt: Date.now() - 86400000,
           triggered: false,
@@ -72,7 +97,7 @@ export default function App() {
           currencyCode: 'USDT',
           marketType: 'virtual',
           condition: 'above_or_equal',
-          targetRate: 240.0,
+          targetRate: 242.0,
           currentRateAtCreation: 240.5,
           note: 'Objectif achat USDT P2P BaridiMob',
           createdAt: Date.now() - 43200000,
@@ -93,15 +118,33 @@ export default function App() {
     }
   });
 
+  // Persist sound preference
+  useEffect(() => {
+    try {
+      localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(soundEnabled));
+    } catch (e) {}
+  }, [soundEnabled]);
+
   const audioContextRef = useRef<AudioContext | null>(null);
 
   // Play synthesized chime when alert triggers
-  const playAlertChime = () => {
+  const playAlertChime = async () => {
     if (!soundEnabled) return;
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      if (!audioContextRef.current) {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          audioContextRef.current = new AudioCtx();
+        }
+      }
+
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
+      }
+
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
@@ -119,54 +162,45 @@ export default function App() {
       osc.start();
       osc.stop(ctx.currentTime + 0.75);
     } catch (e) {
-      console.log('Audio chime not supported or muted');
+      console.log('Audio chime not supported or muted', e);
     }
   };
 
+  // Persist alerts to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts));
+    } catch (e) {}
+  }, [alerts]);
+
   // Evaluate alerts against fresh data
-  const evaluateAlerts = (currentData: ApiResponse, currentAlerts: RateAlert[]) => {
+  const evaluateAlerts = (currentData: ApiResponse) => {
     let hasNewlyTriggered = false;
-    const updated = currentAlerts.map((alert) => {
-      let currentRate = 0;
-      if (alert.currencyCode === 'USDT') {
-        currentRate = currentData.stats.usdtP2pRate || 240.5;
-      } else if (alert.currencyCode === 'WISE_EUR') {
-        currentRate = currentData.stats.wiseEurRate || 248.5;
-      } else {
-        const curr = currentData.currencies.find((c) => c.code === alert.currencyCode);
-        if (curr) {
-          if (alert.marketType === 'parallel') {
-            currentRate = curr.parallel?.sell || 0;
-          } else if (alert.marketType === 'official') {
-            currentRate = curr.official.mid || 0;
-          } else {
-            currentRate = curr.parallel?.sell || 0;
-          }
+
+    setAlerts((prevAlerts) => {
+      const updated = prevAlerts.map((alert) => {
+        const currentRate = getRateForAlert(currentData, alert.currencyCode, alert.marketType);
+
+        const meetsCondition =
+          alert.condition === 'above_or_equal'
+            ? currentRate >= alert.targetRate
+            : currentRate <= alert.targetRate;
+
+        if (meetsCondition && !alert.triggered) {
+          hasNewlyTriggered = true;
         }
-      }
 
-      const meetsCondition =
-        alert.condition === 'above_or_equal'
-          ? currentRate >= alert.targetRate
-          : currentRate <= alert.targetRate;
+        return {
+          ...alert,
+          triggered: meetsCondition,
+        };
+      });
 
-      if (meetsCondition && !alert.triggered) {
-        hasNewlyTriggered = true;
-      }
-
-      return {
-        ...alert,
-        triggered: meetsCondition,
-      };
+      return updated;
     });
 
-    setAlerts(updated);
-    try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {}
-
     if (hasNewlyTriggered) {
-      playAlertChime();
+      setTimeout(() => playAlertChime(), 100);
     }
   };
 
@@ -181,7 +215,7 @@ export default function App() {
       const json = await res.json();
       const payload: ApiResponse = isManual ? json.data : json;
       setData(payload);
-      evaluateAlerts(payload, alerts);
+      evaluateAlerts(payload);
       if (isManual) {
         setRefreshNotification(isAr ? 'تم تحديث الأسعار بنجاح !' : 'Taux actualisés avec succès !');
         setTimeout(() => setRefreshNotification(null), 3000);
@@ -196,6 +230,12 @@ export default function App() {
 
   useEffect(() => {
     fetchRates();
+
+    // Auto-cleanup for old default alerts that are causing confusion
+    setAlerts(prev => prev.filter(alert => {
+      const isOldDefaultEur = alert.id === 'default-alert-eur' && alert.targetRate < 260;
+      return !isOldDefaultEur;
+    }));
   }, []);
 
   const handleAddAlert = (newAlertData: Omit<RateAlert, 'id' | 'createdAt' | 'triggered'>) => {
@@ -205,52 +245,37 @@ export default function App() {
       createdAt: Date.now(),
       triggered: false,
     };
-    const updated = [newAlert, ...alerts];
-    setAlerts(updated);
-    try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {}
+    setAlerts((prev) => [newAlert, ...prev]);
     if (data) {
-      evaluateAlerts(data, updated);
+      evaluateAlerts(data);
     }
   };
 
   const handleDeleteAlert = (id: string) => {
-    const updated = alerts.filter((a) => a.id !== id);
-    setAlerts(updated);
-    try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {}
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
   };
 
   const handleDismissTriggeredAlert = (id: string) => {
-    const updated = alerts.map((a) => (a.id === id ? { ...a, triggered: false } : a));
-    setAlerts(updated);
-    try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {}
+    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, triggered: false } : a)));
   };
 
   const handleTestTriggerAlert = (id: string) => {
-    const updated = alerts.map((a) => (a.id === id ? { ...a, triggered: true } : a));
-    setAlerts(updated);
+    setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, triggered: true } : a)));
     playAlertChime();
-    try {
-      localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(updated));
-    } catch (e) {}
+  };
+
+  const handleClearAllAlerts = () => {
+    if (window.confirm(isAr ? 'هل تريد حذف جميع التنبيهات؟' : 'Voulez-vous supprimer toutes les alertes ?')) {
+      setAlerts([]);
+    }
   };
 
   const handleToggleSound = () => {
-    const nextVal = !soundEnabled;
-    setSoundEnabled(nextVal);
-    try {
-      localStorage.setItem(SOUND_STORAGE_KEY, JSON.stringify(nextVal));
-    } catch (e) {}
+    setSoundEnabled(prev => !prev);
   };
 
-  const handleSelectForConvert = (currencyCode: string, marketType: string = 'parallel') => {
+  const handleSelectForConvert = (currencyCode: string) => {
     setSelectedCurrencyCode(currencyCode);
-    setSelectedMarketType(marketType);
     const elem = document.getElementById('multi-market-converter');
     if (elem) {
       elem.scrollIntoView({ behavior: 'smooth' });
@@ -270,22 +295,15 @@ export default function App() {
     <div
       dir={isAr ? 'rtl' : 'ltr'}
       lang={language}
-      className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-white ${
-        isAr ? 'font-sans' : ''
-      }`}
+      className={`min-h-screen flex flex-col selection:bg-emerald-500 selection:text-white transition-colors duration-500 ${
+        theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      } ${isAr ? 'font-sans' : 'font-sans'}`}
     >
-      {/* Toast Notification */}
-      {refreshNotification && (
-        <div className={`fixed top-20 z-50 bg-emerald-600 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 animate-bounce ${isAr ? 'left-4' : 'right-4'}`}>
-          <Sparkles className="w-4 h-4" />
-          <span>{refreshNotification}</span>
-        </div>
-      )}
-
-      {/* Navigation Header */}
       <Navbar
         data={data}
         isLoading={isLoading}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         onRefresh={() => fetchRates(true)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onScrollToConverter={handleScrollToConverter}
@@ -298,132 +316,92 @@ export default function App() {
         onToggleLanguage={handleToggleLanguage}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-6 py-8">
         {error && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-950/50 border border-rose-800 text-rose-300 text-xs sm:text-sm flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
-              <span>{error}</span>
+          <div className={`mb-8 p-4 rounded-3xl border text-sm flex items-center justify-between gap-4 backdrop-blur-sm ${
+            theme === 'dark' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' : 'bg-rose-50 border-rose-200 text-rose-600'
+          }`}>
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5" />
+              <span className="font-bold">{error}</span>
             </div>
-            <button
-              onClick={() => fetchRates(true)}
-              className="px-3 py-1.5 rounded-lg bg-rose-800 hover:bg-rose-700 text-white font-medium text-xs cursor-pointer"
-            >
-              {isAr ? 'إعادة المحاولة' : 'Réessayer'}
+            <button onClick={() => fetchRates(true)} className="px-4 py-2 rounded-xl bg-rose-500 text-white text-xs font-black uppercase">
+              {isAr ? 'إعادة' : 'Retry'}
             </button>
           </div>
         )}
 
-        {/* Visual Rate Alert Banner when a target is hit */}
         <RateAlertBanner
+          data={data}
           triggeredAlerts={triggeredAlerts}
           onDismissAlert={handleDismissTriggeredAlert}
           onOpenAlertsModal={() => setIsAlertsModalOpen(true)}
           language={language}
         />
 
-        {/* 1. SIMPLE VIEW : THE 3 CORE PILLARS OF THE ALGERIAN MARKET */}
-        <ThreePillarsSummary
-          data={data}
-          onSelectCurrency={(code) => handleSelectForConvert(code, 'parallel')}
-          language={language}
-        />
+        {/* HERO: Essential Rates */}
+        <div className="mb-12">
+          <ThreePillarsSummary
+            data={data}
+            theme={theme}
+            onSelectCurrency={(code) => handleSelectForConvert(code)}
+            language={language}
+          />
+        </div>
 
-        {/* 2. SIMULTANEOUS MULTI-MARKET CURRENCY CONVERTER */}
+        {/* MAIN TOOL: Converter */}
         <MultiMarketConverter
           data={data}
+          theme={theme}
           selectedCurrencyCode={selectedCurrencyCode}
-          selectedMarketType={selectedMarketType}
           onCurrencyChange={(code) => setSelectedCurrencyCode(code)}
           language={language}
         />
 
-        {/* TOGGLE TO VIEW ADVANCED / DETAILED SECTIONS */}
-        <div className="my-8 flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-emerald-400" />
-              <span>
-                {viewMode === 'simple'
-                  ? (isAr ? 'هل تريد استكشاف المزيد من التفاصيل والبيانات ؟' : 'Envie d\'explorer plus de détails ?')
-                  : (isAr ? 'وضع العرض المفصل والشامل مفعل' : 'Mode Vue Complète Activé')}
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {viewMode === 'simple'
-                ? (isAr
-                    ? 'جداول الأسعار الكاملة لـ 13 عملة، الرسوم البيانية التاريخية، أسعار السكوار بالولايات ودليل السوق.'
-                    : 'Tableaux de cotations complètes (13 devises), graphiques d\'évolution, bourses régionales par wilaya et guides.')
-                : (isAr
-                    ? 'جميع البيانات التفصيلية والإحصائية لأسواق الصرف معروضة بالكامل أدناه.'
-                    : 'Toutes les données approfondies du marché algérien sont affichées ci-dessous.')}
-            </p>
+        {/* PROGRESSIVE DISCLOSURE: Detailed Sections */}
+        {viewMode === 'detailed' && data ? (
+          <div className={`space-y-12 animate-fadeIn mt-12 pt-12 border-t ${theme === 'dark' ? 'border-slate-900' : 'border-slate-200'}`}>
+            <MarketHeroCards data={data} theme={theme} onSelectForConvert={handleSelectForConvert} language={language} />
+            <RatesTable data={data} theme={theme} onSelectCurrency={handleSelectForConvert} language={language} />
+            <HistoricalChartSection data={data} theme={theme} language={language} />
+            <VirtualNeobanksSection data={data} theme={theme} onSelectForConvert={handleSelectForConvert} language={language} />
+            <RegionalSquareMarkets markets={data.regionalMarkets} theme={theme} language={language} />
+            <MarketInsightsAndGuide insights={data.insights} theme={theme} language={language} />
           </div>
-
-          <button
-            onClick={() => setViewMode(v => v === 'simple' ? 'detailed' : 'simple')}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-slate-700 active:scale-95 shrink-0"
-          >
-            <span>
-              {viewMode === 'simple'
-                ? (isAr ? 'عرض جميع التفاصيل' : 'Afficher tous les détails')
-                : (isAr ? 'إخفاء التفاصيل' : 'Masquer les détails')}
-            </span>
-            {viewMode === 'simple' ? <ChevronDown className="w-4 h-4 text-emerald-400" /> : <ChevronUp className="w-4 h-4 text-emerald-400" />}
-          </button>
-        </div>
-
-        {/* DETAILED SECTIONS (VISIBLE IN DETAILED MODE) */}
-        {viewMode === 'detailed' && (
-          <div className="space-y-10 animate-fadeIn">
-            {/* Detailed Hero Breakdown Cards */}
-            <MarketHeroCards
-              data={data}
-              onSelectForConvert={handleSelectForConvert}
-              language={language}
-            />
-
-            {/* Detailed Rates Table */}
-            <RatesTable
-              data={data}
-              onSelectCurrency={(code) => handleSelectForConvert(code, 'parallel')}
-              language={language}
-            />
-
-            {/* Historical Evolution Charts */}
-            <HistoricalChartSection
-              data={data}
-              language={language}
-            />
-
-            {/* Virtual Neobanks & Crypto */}
-            {data && (
-              <VirtualNeobanksSection
-                virtualRates={data.virtualRates}
-                onSelectForConvert={handleSelectForConvert}
-                language={language}
-              />
-            )}
-
-            {/* Regional Square Markets across Algerian Cities */}
-            {data && (
-              <RegionalSquareMarkets
-                markets={data.regionalMarkets}
-                language={language}
-              />
-            )}
-
-            {/* Insights, Factors & Practical Guide */}
-            {data && (
-              <MarketInsightsAndGuide
-                insights={data.insights}
-                language={language}
-              />
-            )}
+        ) : viewMode === 'simple' && (
+          <div className="flex justify-center mt-12">
+            <button
+              onClick={() => setViewMode('detailed')}
+              className={`group flex flex-col items-center gap-4 py-8 px-12 rounded-[2.5rem] border transition-all ${
+                theme === 'dark' ? 'bg-slate-900/50 border-slate-800 hover:border-emerald-500/30' : 'bg-white border-slate-200 shadow-xl hover:border-emerald-500/50'
+              }`}
+            >
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+                theme === 'dark' ? 'bg-slate-950 text-emerald-500' : 'bg-emerald-500 text-white'
+              } group-hover:scale-110`}>
+                <ChevronDown className="w-8 h-8" />
+              </div>
+              <div className="text-center">
+                <p className={`text-sm font-black uppercase tracking-widest mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t.btnShowDetails}</p>
+                <p className="text-xs text-slate-500 max-w-[200px] leading-relaxed">{t.moreDetailsDesc.split('(')[0]}</p>
+              </div>
+            </button>
           </div>
         )}
       </main>
+
+      <footer className={`mt-20 border-t py-12 px-6 ${theme === 'dark' ? 'border-slate-900' : 'border-slate-200'}`}>
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all">
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" alt="DZ EXCHANGE" className="w-8 h-8 rounded-lg opacity-80" onError={(e) => (e.currentTarget.style.display = 'none')} />
+            <div>
+              <p className={`font-black uppercase tracking-tighter ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>DZ EXCHANGE</p>
+              <p className="text-[10px] font-bold text-slate-500">{t.footerRights.split('•')[1]}</p>
+            </div>
+          </div>
+          <p className="text-[10px] leading-relaxed text-center md:text-right max-w-md font-medium text-slate-500">{t.footerDisclaimer}</p>
+        </div>
+      </footer>
 
       {/* Share Bulletin Modal */}
       <ShareBulletinModal
@@ -441,29 +419,12 @@ export default function App() {
         alerts={alerts}
         onAddAlert={handleAddAlert}
         onDeleteAlert={handleDeleteAlert}
+        onClearAllAlerts={handleClearAllAlerts}
         onTestTriggerAlert={handleTestTriggerAlert}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
         language={language}
       />
-
-      {/* Footer */}
-      <footer className="mt-12 bg-slate-950 border-t border-slate-900 py-8 text-xs text-slate-400">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🇩🇿</span>
-            <span className="font-bold text-slate-200">{isAr ? 'دينار ديزاد - أسعار الصرف' : 'DinarDZ Exchange Tracker'}</span>
-            <span className="text-slate-600">|</span>
-            <span>{isAr ? 'الجزائر • أسعار الصرف لحظة بلحظة' : 'Algérie • Taux de Change Temps Réel'}</span>
-          </div>
-
-          <p className="text-center md:text-right text-slate-400 max-w-xl">
-            {isAr
-              ? 'تنبيه : أسعار السوق الموازي (سكوار بورسعيد) والعملات الرقمية معروضة لأغراض إعلامية استرشادية وفقاً لمتوسط المعاملات الرائجة في السوق ومنصات P2P.'
-              : 'Avertissement : Les cours du marché parallèle (Square Port-Saïd) et des devises virtuelles sont donnés à titre indicatif selon les moyennes constatées sur les places d\'échange et plateformes P2P.'}
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

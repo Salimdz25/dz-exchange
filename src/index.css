@@ -1,5 +1,31 @@
 @import "tailwindcss";
 
-[dir="rtl"] {
-  font-family: 'Cairo', 'Plus Jakarta Sans', system-ui, sans-serif;
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Cairo", "Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* Specific class to ensure emojis/flags render with color */
+.flag-emoji {
+  font-family: "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif !important;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

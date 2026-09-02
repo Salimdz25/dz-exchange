@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Copy, Check, Share2, Sparkles, Send, Download } from 'lucide-react';
+import { X, Copy, Check, Share2 } from 'lucide-react';
 import { ApiResponse } from '../types';
 import { formatCentimesAlgerien } from '../utils/formatters';
 import { Language, translations } from '../utils/translations';
+import { getCurrencyAsset } from '../utils/currencyAssets';
 
 interface ShareBulletinModalProps {
   isOpen: boolean;
@@ -49,65 +50,47 @@ export const ShareBulletinModal: React.FC<ShareBulletinModalProps> = ({
 🕒 التوقيت : ${data.lastUpdatedFormatted}
 
 ━━━━━━━━━━━━━━━━━━━━━
-🏙️ الركيزة 1 : السوق الموازي (سكوار بورسعيد)
-🇪🇺 100 يورو EURO (€) :
-   • بيع (للزبون) : ${((eurCurr?.parallel?.sell || 252.5) * 100).toLocaleString('ar-DZ')} دج (${formatCentimesAlgerien((eurCurr?.parallel?.sell || 252.5) * 100, 'ar')})
-   • شراء (من الزبون) : ${((eurCurr?.parallel?.buy || 250.0) * 100).toLocaleString('ar-DZ')} دج
+🏙️ الركيزة 1 : السوق الموازي (السكوار)
+${getCurrencyAsset('EUR').flag} 100 يورو EURO :
+   • بيع : ${((eurCurr?.parallel?.sell || 276.0) * 100).toLocaleString('ar-DZ')} دج
+   • شراء : ${((eurCurr?.parallel?.buy || 274.0) * 100).toLocaleString('ar-DZ')} دج
 
-🇺🇸 100 دولار DOLLAR ($) :
-   • بيع (للزبون) : ${((usdCurr?.parallel?.sell || 236.5) * 100).toLocaleString('ar-DZ')} دج (${formatCentimesAlgerien((usdCurr?.parallel?.sell || 236.5) * 100, 'ar')})
-   • شراء (من الزبون) : ${((usdCurr?.parallel?.buy || 234.0) * 100).toLocaleString('ar-DZ')} دج
-
-🇨🇦 100 دولار كندي CAD : ${((cadCurr?.parallel?.sell || 171.0) * 100).toLocaleString('ar-DZ')} دج
-🇬🇧 100 باوند GBP : ${((gbpCurr?.parallel?.sell || 296.0) * 100).toLocaleString('ar-DZ')} دج
-🇸🇦 100 ريال سعودي SAR (عمرة/حج) : ${((sarCurr?.parallel?.sell || 63.5) * 100).toLocaleString('ar-DZ')} دج
-🇦🇪 100 درهم إماراتي AED : ${((aedCurr?.parallel?.sell || 65.0) * 100).toLocaleString('ar-DZ')} دج
+${getCurrencyAsset('USD').flag} 100 دولار DOLLAR :
+   • بيع : ${((usdCurr?.parallel?.sell || 238.0) * 100).toLocaleString('ar-DZ')} دج
+   • شراء : ${((usdCurr?.parallel?.buy || 235.0) * 100).toLocaleString('ar-DZ')} دج
 
 ━━━━━━━━━━━━━━━━━━━━━
-💳 الركيزة 2 : العملات الرقمية والنئوبنوك (بريدي موب)
-🪙 1 USDT (بينانس P2P) : ${usdtItem?.buyDzd.toFixed(1) || '240.5'} دج
-🇪🇺 1 يورو وايز Wise (€) : ${wiseItem?.buyDzd.toFixed(1) || '248.5'} دج
-🇪🇺 1 يورو بايسيرا Paysera (€) : ${payseraItem?.buyDzd.toFixed(1) || '247.0'} دج
+💳 الركيزة 2 : العملات الرقمية (بريدي موب)
+${getCurrencyAsset('USDT').flag} 1 USDT (Binance) : ${data.stats.usdtP2pRate.toFixed(1)} دج
+${getCurrencyAsset('WISE_EUR').flag} 1 EUR (Wise) : ${data.stats.wiseEurRate.toFixed(1)} دج
 
 ━━━━━━━━━━━━━━━━━━━━━
-🏛️ الركيزة 3 : بنك الجزائر (السعر الرسمي بين البنوك)
-🇪🇺 1 يورو EUR : ${eurCurr?.official.mid?.toFixed(2) || '145.50'} دج
-🇺🇸 1 دولار USD : ${usdCurr?.official.mid?.toFixed(2) || '133.80'} دج
-📊 الفارق بين السكوار والرسمي : +${data.stats.gapEurPercent}%
-
-📲 تابعوا التحديثات المباشرة لحظة بلحظة على DinarDZ Exchange Tracker`
-    : `🇩🇿 BULLETIN DES TAUX DE CHANGE DINAR (DZD)
+🏛️ الركيزة 3 : بنك الجزائر (رسمي)
+${getCurrencyAsset('EUR').flag} 1 يورو EUR : ${data.stats.officialEurToDzd.toFixed(2)} دج
+📊 الفارق : +${data.stats.gapEurPercent}%`
+    : `🇩🇿 BULLETIN DES TAUX DE CHANGE (DZD)
 📅 Date : ${todayStr}
 🕒 Heure : ${data.lastUpdatedFormatted}
 
 ━━━━━━━━━━━━━━━━━━━━━
-🏙️ PILIER 1 : MARCHÉ PARALLÈLE (SQUARE PORT-SAÏD)
-🇪🇺 100 EURO (€) :
-   • Vente (Client) : ${((eurCurr?.parallel?.sell || 252.5) * 100).toLocaleString('fr-DZ')} DA (${formatCentimesAlgerien((eurCurr?.parallel?.sell || 252.5) * 100, 'fr')})
-   • Achat (Cambiste) : ${((eurCurr?.parallel?.buy || 250.0) * 100).toLocaleString('fr-DZ')} DA
+🏙️ PILIER 1 : MARCHÉ PARALLÈLE (SQUARE)
+${getCurrencyAsset('EUR').flag} 100 EURO (€) :
+   • Vente : ${((eurCurr?.parallel?.sell || 276.0) * 100).toLocaleString('fr-DZ')} DA
+   • Achat : ${((eurCurr?.parallel?.buy || 274.0) * 100).toLocaleString('fr-DZ')} DA
 
-🇺🇸 100 DOLLAR ($) :
-   • Vente (Client) : ${((usdCurr?.parallel?.sell || 236.5) * 100).toLocaleString('fr-DZ')} DA (${formatCentimesAlgerien((usdCurr?.parallel?.sell || 236.5) * 100, 'fr')})
-   • Achat (Cambiste) : ${((usdCurr?.parallel?.buy || 234.0) * 100).toLocaleString('fr-DZ')} DA
-
-🇨🇦 100 CAD : ${((cadCurr?.parallel?.sell || 171.0) * 100).toLocaleString('fr-DZ')} DA
-🇬🇧 100 GBP : ${((gbpCurr?.parallel?.sell || 296.0) * 100).toLocaleString('fr-DZ')} DA
-🇸🇦 100 SAR (Omra/Hadj) : ${((sarCurr?.parallel?.sell || 63.5) * 100).toLocaleString('fr-DZ')} DA
-🇦🇪 100 AED (Dubaï) : ${((aedCurr?.parallel?.sell || 65.0) * 100).toLocaleString('fr-DZ')} DA
+${getCurrencyAsset('USD').flag} 100 DOLLAR ($) :
+   • Vente : ${((usdCurr?.parallel?.sell || 238.0) * 100).toLocaleString('fr-DZ')} DA
+   • Achat : ${((usdCurr?.parallel?.buy || 235.0) * 100).toLocaleString('fr-DZ')} DA
 
 ━━━━━━━━━━━━━━━━━━━━━
-💳 PILIER 2 : DEVISES VIRTUELLES & NÉOBANQUES (BARIDIMOB)
-🪙 1 USDT (Binance P2P) : ${usdtItem?.buyDzd.toFixed(1) || '240.5'} DA
-🇪🇺 1 EURO Wise (€) : ${wiseItem?.buyDzd.toFixed(1) || '248.5'} DA
-🇪🇺 1 EURO Paysera (€) : ${payseraItem?.buyDzd.toFixed(1) || '247.0'} DA
+💳 PILIER 2 : DEVISES VIRTUELLES (P2P)
+${getCurrencyAsset('USDT').flag} 1 USDT (Binance) : ${data.stats.usdtP2pRate.toFixed(1)} DA
+${getCurrencyAsset('WISE_EUR').flag} 1 EUR (Wise) : ${data.stats.wiseEurRate.toFixed(1)} DA
 
 ━━━━━━━━━━━━━━━━━━━━━
-🏛️ PILIER 3 : BANQUE D'ALGÉRIE (OFFICIEL INTERBANCAIRE)
-🇪🇺 1 EUR : ${eurCurr?.official.mid?.toFixed(2) || '145.50'} DA
-🇺🇸 1 USD : ${usdCurr?.official.mid?.toFixed(2) || '133.80'} DA
-📊 Écart Square vs Officiel : +${data.stats.gapEurPercent}%
-
-📲 Suivez les cours en direct sur DinarDZ Exchange Tracker`;
+🏛️ PILIER 3 : BANQUE D'ALGÉRIE (OFFICIEL)
+${getCurrencyAsset('EUR').flag} 1 EUR : ${data.stats.officialEurToDzd.toFixed(2)} DA
+📊 Écart Square : +${data.stats.gapEurPercent}%`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(bulletinText);

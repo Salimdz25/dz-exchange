@@ -1,17 +1,19 @@
 import React from 'react';
-import { Store, CreditCard, Building2, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { Store, CreditCard, Building2, ArrowUpRight } from 'lucide-react';
 import { ApiResponse } from '../types';
-import { formatCentimesAlgerien } from '../utils/formatters';
 import { Language, translations } from '../utils/translations';
+import { getCurrencyAsset } from '../utils/currencyAssets';
 
 interface ThreePillarsSummaryProps {
   data: ApiResponse | null;
+  theme: 'light' | 'dark';
   onSelectCurrency: (code: string) => void;
   language: Language;
 }
 
 export const ThreePillarsSummary: React.FC<ThreePillarsSummaryProps> = ({
   data,
+  theme,
   onSelectCurrency,
   language,
 }) => {
@@ -19,307 +21,178 @@ export const ThreePillarsSummary: React.FC<ThreePillarsSummaryProps> = ({
 
   const t = translations[language];
   const isAr = language === 'ar';
-
-  const eurCurr = data.currencies.find(c => c.code === 'EUR');
-  const usdCurr = data.currencies.find(c => c.code === 'USD');
-  const cadCurr = data.currencies.find(c => c.code === 'CAD');
-  const gbpCurr = data.currencies.find(c => c.code === 'GBP');
-  const sarCurr = data.currencies.find(c => c.code === 'SAR');
-
-  const usdtItem = data.virtualRates.find(v => v.id === 'usdt_binance');
-  const wiseItem = data.virtualRates.find(v => v.id === 'wise_eur');
-  const payseraItem = data.virtualRates.find(v => v.id === 'paysera_eur');
-  const redotpayItem = data.virtualRates.find(v => v.id === 'redotpay_usd');
-
-  const eurSquareSell = eurCurr?.parallel?.sell || 252.5;
-  const eurSquareBuy = eurCurr?.parallel?.buy || 250.0;
-  const usdSquareSell = usdCurr?.parallel?.sell || 236.5;
-  const usdSquareBuy = usdCurr?.parallel?.buy || 234.0;
-
-  const eurOfficialMid = eurCurr?.official?.mid || 145.5;
-  const usdOfficialMid = usdCurr?.official?.mid || 133.8;
-
   const daUnit = isAr ? 'دج' : 'DA';
+  const isDark = theme === 'dark';
+
+  const eur = getCurrencyAsset('EUR');
+  const usd = getCurrencyAsset('USD');
+  const usdt = getCurrencyAsset('USDT');
+
+  const eurSquare = data.currencies.find(c => c.code === 'EUR')?.parallel?.sell || 276;
+  const usdSquare = data.currencies.find(c => c.code === 'USD')?.parallel?.sell || 238;
+
+  const cardClass = `group relative rounded-3xl border p-6 shadow-xl transition-all overflow-hidden ${
+    isDark ? 'bg-slate-900 border-slate-800 hover:border-emerald-500/50' : 'bg-white border-slate-200 hover:border-emerald-500/50'
+  }`;
+
+  const innerBoxClass = `p-4 rounded-2xl border ${
+    isDark ? 'bg-slate-950/50 border-slate-800/50' : 'bg-slate-50 border-slate-100 shadow-inner'
+  }`;
+
+  const labelClass = `text-sm font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`;
+  const priceClass = `text-2xl font-black font-mono ${isDark ? 'text-white' : 'text-slate-900'}`;
 
   return (
-    <div className="mb-8">
-      {/* 3 Pillars Clean Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        
-        {/* PILIER 1: MARCHÉ PARALLÈLE (SQUARE PORT-SAÏD) */}
-        <div className="rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border-2 border-emerald-500/40 p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-emerald-900/80 text-emerald-300 border border-emerald-700/60 shadow">
-              {t.pillar1Badge}
-            </span>
+    <div className="mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* PILIER 1: CASH / SQUARE */}
+        <div className={cardClass}>
+          <div className={`absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl transition-all ${isDark ? 'bg-emerald-500/5 group-hover:bg-emerald-500/10' : 'bg-emerald-500/10 group-hover:bg-emerald-500/20'}`} />
+
+          <div className="flex items-center gap-4 mb-6 text-emerald-500">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+              <Store className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.pillar1Title}</h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{t.pillar1Subtitle}</p>
+            </div>
           </div>
 
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-950/80 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                <Store className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>{t.pillar1Title}</span>
-                  <span className="text-base">🇩🇿</span>
-                </h3>
-                <p className="text-xs text-slate-400">{t.pillar1Subtitle}</p>
-              </div>
-            </div>
-
-            {/* EUR Main row with Flag & Symbol */}
-            <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 mb-3">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-slate-200 flex items-center gap-2">
-                  <span className="text-xl inline-flex items-center justify-center shadow-sm" title="Zone Euro">🇪🇺</span>
-                  <span>{isAr ? 'يورو' : 'Euro'} <span className="text-emerald-400 font-mono font-bold">(EUR €)</span></span>
+          <div className="space-y-4">
+            <div className={innerBoxClass}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`flex items-center gap-2 ${labelClass}`}>
+                  <span className="flag-emoji text-xl">{eur.flag}</span> {isAr ? 'يورو' : 'Euro'}
                 </span>
-                <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/40">
-                  100 € = {(eurSquareSell * 100).toLocaleString(isAr ? 'ar-DZ' : 'fr-DZ')} {daUnit}
-                </span>
+                <span className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded uppercase">{t.sellLabel.split(':')[0]}</span>
               </div>
-              <div className="flex justify-between items-baseline font-mono text-xs">
-                <span className="text-slate-400">
-                  {t.buyLabel} <strong className="text-slate-200">{eurSquareBuy.toFixed(1)} {daUnit}</strong>
-                </span>
-                <span className="text-slate-400">
-                  {t.sellLabel} <strong className="text-emerald-400 text-sm font-black">{eurSquareSell.toFixed(1)} {daUnit}</strong>
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 truncate">
-                {formatCentimesAlgerien(eurSquareSell * 100, language)}
+              <div className={priceClass}>
+                {eurSquare.toFixed(1)} <span className="text-sm font-normal text-slate-500">{daUnit}</span>
               </div>
             </div>
 
-            {/* USD Main row with Flag & Symbol */}
-            <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 mb-3">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-slate-200 flex items-center gap-2">
-                  <span className="text-xl inline-flex items-center justify-center shadow-sm" title="USA">🇺🇸</span>
-                  <span>{isAr ? 'دولار أمريكي' : 'Dollar US'} <span className="text-emerald-400 font-mono font-bold">(USD $)</span></span>
+            <div className={innerBoxClass}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`flex items-center gap-2 ${labelClass}`}>
+                  <span className="flag-emoji text-xl">{usd.flag}</span> {isAr ? 'دولار' : 'Dollar'}
                 </span>
-                <span className="text-[11px] font-mono text-emerald-400 font-bold bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/40">
-                  100 $ = {(usdSquareSell * 100).toLocaleString(isAr ? 'ar-DZ' : 'fr-DZ')} {daUnit}
-                </span>
+                <span className="text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded uppercase">{t.sellLabel.split(':')[0]}</span>
               </div>
-              <div className="flex justify-between items-baseline font-mono text-xs">
-                <span className="text-slate-400">
-                  {t.buyLabel} <strong className="text-slate-200">{usdSquareBuy.toFixed(1)} {daUnit}</strong>
-                </span>
-                <span className="text-slate-400">
-                  {t.sellLabel} <strong className="text-emerald-400 text-sm font-black">{usdSquareSell.toFixed(1)} {daUnit}</strong>
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-400 mt-1 truncate">
-                {formatCentimesAlgerien(usdSquareSell * 100, language)}
-              </div>
-            </div>
-
-            {/* Quick mini-list CAD / GBP / SAR with flags */}
-            <div className="grid grid-cols-3 gap-1.5 text-[11px] text-center bg-slate-950/40 p-2 rounded-xl border border-slate-800/60">
-              <div>
-                <span className="text-slate-400 font-medium flex items-center justify-center gap-1">
-                  <span>🇨🇦</span> CAD ($)
-                </span>
-                <span className="font-mono font-bold text-slate-200">{cadCurr?.parallel?.sell.toFixed(1) || '171.0'} {daUnit}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium flex items-center justify-center gap-1">
-                  <span>🇬🇧</span> GBP (£)
-                </span>
-                <span className="font-mono font-bold text-slate-200">{gbpCurr?.parallel?.sell.toFixed(1) || '296.0'} {daUnit}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium flex items-center justify-center gap-1">
-                  <span>🇸🇦</span> SAR (﷼)
-                </span>
-                <span className="font-mono font-bold text-slate-200">{sarCurr?.parallel?.sell.toFixed(1) || '63.5'} {daUnit}</span>
+              <div className={priceClass}>
+                {usdSquare.toFixed(1)} <span className="text-sm font-normal text-slate-500">{daUnit}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-400">{t.pillar1HandToHand}</span>
-            <button
-              onClick={() => onSelectCurrency('EUR')}
-              className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              {t.btnCalculate} <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <button
+            onClick={() => onSelectCurrency('EUR')}
+            className={`w-full mt-6 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+            }`}
+          >
+            <span>{t.btnCalculate}</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* PILIER 2: DEVISES VIRTUELLES & NÉOBANQUES (BARIDIMOB) */}
-        <div className="rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border-2 border-cyan-500/40 p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-cyan-900/80 text-cyan-300 border border-cyan-700/60 shadow">
-              {t.pillar2Badge}
-            </span>
-          </div>
+        {/* PILIER 2: DIGITAL / P2P */}
+        <div className={cardClass.replace('emerald', 'cyan')}>
+          <div className={`absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl transition-all ${isDark ? 'bg-cyan-500/5 group-hover:bg-cyan-500/10' : 'bg-cyan-500/10 group-hover:bg-cyan-500/20'}`} />
 
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-2xl bg-cyan-950/80 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
-                <CreditCard className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>{t.pillar2Title}</span>
-                  <span className="text-base">💳</span>
-                </h3>
-                <p className="text-xs text-slate-400">{t.pillar2Subtitle}</p>
-              </div>
+          <div className="flex items-center gap-4 mb-6 text-cyan-500">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDark ? 'bg-cyan-500/10' : 'bg-cyan-50'}`}>
+              <CreditCard className="w-6 h-6" />
             </div>
-
-            {/* USDT Tether Binance P2P */}
-            <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 mb-3">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-slate-200 flex items-center gap-2">
-                  <span className="text-xl">🪙</span>
-                  <span>USDT Tether <span className="text-cyan-400 font-mono font-bold">(USD ₮)</span></span>
-                </span>
-                <span className="text-[11px] font-mono text-cyan-400 font-bold bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800/40">
-                  100 ₮ = {((usdtItem?.buyDzd || 240.5) * 100).toLocaleString(isAr ? 'ar-DZ' : 'fr-DZ')} {daUnit}
-                </span>
-              </div>
-              <div className="flex justify-between items-baseline font-mono text-xs">
-                <span className="text-slate-400">
-                  {t.clientBuyLabel} <strong className="text-cyan-400 text-sm font-black">{usdtItem?.buyDzd.toFixed(1) || '240.5'} {daUnit}</strong>
-                </span>
-                <span className="text-slate-400">
-                  {t.clientSellLabel} <strong className="text-slate-300">{usdtItem?.sellDzd.toFixed(1) || '238.0'} {daUnit}</strong>
-                </span>
-              </div>
-              <div className="text-[11px] text-cyan-400/80 mt-1 flex items-center gap-1.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                <span>{t.pillar2BaridiMobInfo}</span>
-              </div>
-            </div>
-
-            {/* Wise Euro */}
-            <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 mb-3">
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span className="font-bold text-slate-200 flex items-center gap-2">
-                  <span className="text-xl">🇪🇺</span>
-                  <span>Wise <span className="text-sky-400 font-mono font-bold">({isAr ? 'رصيد يورو €' : 'Solde EUR €'})</span></span>
-                </span>
-                <span className="text-[11px] font-mono text-sky-400 font-bold bg-sky-950/80 px-2 py-0.5 rounded border border-sky-800/40">
-                  100 € = {((wiseItem?.buyDzd || 248.5) * 100).toLocaleString(isAr ? 'ar-DZ' : 'fr-DZ')} {daUnit}
-                </span>
-              </div>
-              <div className="flex justify-between items-baseline font-mono text-xs">
-                <span className="text-slate-400">
-                  {t.rechargeLabel} <strong className="text-sky-400 text-sm font-black">{wiseItem?.buyDzd.toFixed(1) || '248.5'} {daUnit}</strong>
-                </span>
-                <span className="text-slate-400">
-                  {t.sellLabel} <strong className="text-slate-300">{wiseItem?.sellDzd.toFixed(1) || '245.0'} {daUnit}</strong>
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Paysera & RedotPay */}
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-center bg-slate-950/40 p-2 rounded-xl border border-slate-800/60">
-              <div>
-                <span className="text-slate-400 font-medium flex items-center justify-center gap-1">
-                  <span>🇪🇺</span> Paysera (€)
-                </span>
-                <span className="font-mono font-bold text-amber-400">{payseraItem?.buyDzd.toFixed(1) || '247.0'} {daUnit}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 font-medium flex items-center justify-center gap-1">
-                  <span>🇺🇸</span> RedotPay ($)
-                </span>
-                <span className="font-mono font-bold text-rose-400">{redotpayItem?.buyDzd.toFixed(1) || '238.5'} {daUnit}</span>
-              </div>
+            <div>
+              <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.pillar2Title}</h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{t.pillar2Subtitle.split('&')[0]}</p>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-400">{t.pillar2AliExpressInfo}</span>
-            <button
-              onClick={() => onSelectCurrency('USD')}
-              className="text-cyan-400 hover:text-cyan-300 font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              {t.btnCalculate} <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+          <div className="space-y-4">
+            <div className={innerBoxClass}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`flex items-center gap-2 ${labelClass}`}>
+                  <span className="flag-emoji text-xl">{usdt.flag}</span> USDT Tether
+                </span>
+                <span className="text-[9px] font-black text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded uppercase">Crypto</span>
+              </div>
+              <div className={priceClass}>
+                {data.stats.usdtP2pRate?.toFixed(1)} <span className="text-sm font-normal text-slate-500">{daUnit}</span>
+              </div>
+            </div>
+
+            <div className={innerBoxClass}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`flex items-center gap-2 ${labelClass}`}>
+                  <span className="flag-emoji text-xl">{getCurrencyAsset('EUR').flag}</span> Wise / Paysera
+                </span>
+                <span className="text-[9px] font-black text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded uppercase">Digital</span>
+              </div>
+              <div className={priceClass}>
+                {data.stats.wiseEurRate?.toFixed(1)} <span className="text-sm font-normal text-slate-500">{daUnit}</span>
+              </div>
+              <p className={`text-[10px] mt-1 font-bold ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{isAr ? 'يورو رقمي (أغلى من الورق)' : 'Euro Numérique (Premium)'}</p>
+            </div>
           </div>
+
+          <button
+            onClick={() => onSelectCurrency('USD')}
+            className={`w-full mt-6 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+            }`}
+          >
+            <span>{t.btnCalculate}</span>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* PILIER 3: BANQUE D'ALGÉRIE (OFFICIEL) */}
-        <div className="rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border-2 border-blue-500/40 p-6 shadow-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute top-0 right-0 transform translate-x-2 -translate-y-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-blue-950 text-blue-300 border border-blue-800/60 shadow">
-              {t.pillar3Badge}
-            </span>
-          </div>
+        {/* PILIER 3: OFFICIAL BANK */}
+        <div className={cardClass.replace('emerald', 'blue')}>
+          <div className={`absolute -right-8 -top-8 w-24 h-24 rounded-full blur-2xl transition-all ${isDark ? 'bg-blue-500/5 group-hover:bg-blue-500/10' : 'bg-blue-500/10 group-hover:bg-blue-500/20'}`} />
 
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-11 h-11 rounded-2xl bg-blue-950/80 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
-                <Building2 className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <span>{t.pillar3Title}</span>
-                  <span className="text-base">🏛️</span>
-                </h3>
-                <p className="text-xs text-slate-400">{t.pillar3Subtitle}</p>
-              </div>
+          <div className="flex items-center gap-4 mb-6 text-blue-500">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
+              <Building2 className="w-6 h-6" />
             </div>
-
-            {/* Official EUR */}
-            <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 mb-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-slate-200 flex items-center gap-2">
-                  <span className="text-xl inline-flex items-center justify-center" title="Union Européenne">🇪🇺</span>
-                  <span>{isAr ? 'يورو' : 'Euro'} <span className="text-blue-400 font-mono font-bold">(EUR €)</span></span>
-                </span>
-                <span className="text-xs font-mono text-blue-400 font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/40">
-                  {eurOfficialMid.toFixed(2)} {daUnit}
-                </span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                <span>100 € = {(eurOfficialMid * 100).toLocaleString(isAr ? 'ar-DZ' : 'fr-DZ')} {daUnit}</span>
-                <span className="text-amber-400 font-mono font-semibold">{t.squareGap} +{data.stats.gapEurPercent}%</span>
-              </div>
-            </div>
-
-            {/* Official USD */}
-            <div className="rounded-2xl bg-slate-950/80 border border-slate-800 p-3.5 mb-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className="font-bold text-slate-200 flex items-center gap-2">
-                  <span className="text-xl inline-flex items-center justify-center" title="USA">🇺🇸</span>
-                  <span>{isAr ? 'دولار أمريكي' : 'Dollar US'} <span className="text-blue-400 font-mono font-bold">(USD $)</span></span>
-                </span>
-                <span className="text-xs font-mono text-blue-400 font-bold bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/40">
-                  {usdOfficialMid.toFixed(2)} {daUnit}
-                </span>
-              </div>
-              <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                <span>100 $ = {(usdOfficialMid * 100).toLocaleString(isAr ? 'ar-DZ' : 'fr-DZ')} {daUnit}</span>
-                <span className="text-amber-400 font-mono font-semibold">{t.squareGap} +{data.stats.gapUsdPercent}%</span>
-              </div>
-            </div>
-
-            {/* Official info notice */}
-            <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-3 text-[11px] text-slate-300 space-y-1">
-              <div className="flex items-center gap-1.5 text-blue-300 font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>{t.pillar3BankNotice}</span>
-              </div>
-              <p className="text-slate-400 leading-tight">
-                {t.pillar3BankDesc}
-              </p>
+            <div>
+              <h3 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-slate-900'}`}>{t.pillar3Title}</h3>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{t.pillar3Subtitle}</p>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-            <span className="text-slate-400">{t.pillar3DailyFixing}</span>
-            <span className="font-mono text-blue-400 font-semibold">{t.pillar3BankCounters}</span>
+          <div className="space-y-4">
+            <div className={innerBoxClass}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`flex items-center gap-2 ${labelClass}`}>
+                  <span className="flag-emoji text-xl">{getCurrencyAsset('EUR').flag}</span> Euro {eur.code}
+                </span>
+                <span className="text-[9px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded uppercase">Fixing</span>
+              </div>
+              <div className={priceClass}>
+                {data.stats.officialEurToDzd?.toFixed(2)} <span className="text-sm font-normal text-slate-500">{daUnit}</span>
+              </div>
+            </div>
+
+            <div className={innerBoxClass}>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`flex items-center gap-2 ${labelClass}`}>
+                  <span className="flag-emoji text-xl">{getCurrencyAsset('USD').flag}</span> Dollar {usd.code}
+                </span>
+                <span className="text-[9px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded uppercase">Fixing</span>
+              </div>
+              <div className={priceClass}>
+                {data.stats.officialUsdToDzd?.toFixed(2)} <span className="text-sm font-normal text-slate-500">{daUnit}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={`mt-6 pt-4 border-t flex items-center justify-between text-[9px] font-black uppercase tracking-widest ${isDark ? 'border-slate-800 text-slate-500' : 'border-slate-100 text-slate-400'}`}>
+            <span>{t.pillar3DailyFixing}</span>
+            <span className="text-blue-500">{t.pillar3BankCounters}</span>
           </div>
         </div>
-
       </div>
     </div>
   );

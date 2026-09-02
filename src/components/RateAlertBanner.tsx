@@ -1,9 +1,12 @@
 import React from 'react';
-import { BellRing, X, ArrowRight, ArrowLeft } from 'lucide-react';
-import { RateAlert } from '../types';
+import { BellRing, X } from 'lucide-react';
+import { ApiResponse, RateAlert } from '../types';
 import { Language, translations } from '../utils/translations';
+import { getCurrencyAsset } from '../utils/currencyAssets';
+import { getRateForAlert } from '../utils/rateUtils';
 
 interface RateAlertBannerProps {
+  data: ApiResponse | null;
   triggeredAlerts: RateAlert[];
   onDismissAlert: (id: string) => void;
   onOpenAlertsModal: () => void;
@@ -11,94 +14,71 @@ interface RateAlertBannerProps {
 }
 
 export const RateAlertBanner: React.FC<RateAlertBannerProps> = ({
+  data,
   triggeredAlerts,
   onDismissAlert,
   onOpenAlertsModal,
   language,
 }) => {
-  if (triggeredAlerts.length === 0) return null;
+  if (triggeredAlerts.length === 0 || !data) return null;
 
   const t = translations[language];
   const isAr = language === 'ar';
   const daUnit = isAr ? 'دج' : 'DA';
 
-  const getFlagForCode = (code: string) => {
-    switch (code) {
-      case 'EUR': return '🇪🇺';
-      case 'USD': return '🇺🇸';
-      case 'USDT': return '🪙';
-      case 'WISE_EUR': return '🇪🇺';
-      case 'CAD': return '🇨🇦';
-      case 'GBP': return '🇬🇧';
-      case 'SAR': return '🇸🇦';
-      case 'AED': return '🇦🇪';
-      default: return '🇩🇿';
-    }
-  };
-
   const getMarketName = (market: string) => {
-    if (market === 'parallel') return isAr ? 'في سكوار بورسعيد' : 'au Square Port-Saïd';
-    if (market === 'virtual') return isAr ? 'في السوق الرقمي P2P' : 'en Virtuel P2P';
-    return isAr ? 'لدى البنك الرسمي' : 'à la Banque Officielle';
+    if (market === 'parallel') return isAr ? 'في السكوار' : 'au Square';
+    if (market === 'virtual') return isAr ? 'في P2P' : 'en P2P';
+    return isAr ? 'رسمي' : 'Officiel';
   };
 
   return (
-    <div className="mb-6 space-y-2">
-      {triggeredAlerts.map((alert) => (
-        <div
-          key={alert.id}
-          className="relative rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 border-2 border-emerald-500/80 p-4 shadow-xl shadow-emerald-950/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn"
-        >
-          {/* Pulsing indicator with flag */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-11 h-11 rounded-xl bg-emerald-500 text-slate-950 font-bold shrink-0 text-xl shadow-md">
-              <span>{getFlagForCode(alert.currencyCode)}</span>
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-400"></span>
-              </span>
-            </div>
+    <div className="mb-8 space-y-3">
+      {triggeredAlerts.map((alert) => {
+        const asset = getCurrencyAsset(alert.currencyCode);
+        return (
+          <div
+            key={alert.id}
+            className="relative rounded-3xl bg-emerald-500 text-slate-950 p-5 shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-3xl shadow-inner">
+                {asset.flag}
+              </div>
 
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                  <BellRing className="w-3.5 h-3.5" />
-                  <span>{t.alertBannerHitTitle}</span>
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-900/80 font-mono text-emerald-300 border border-emerald-700/50">
-                  {getFlagForCode(alert.currencyCode)} {alert.currencyCode === 'WISE_EUR' ? 'Wise EUR (€)' : alert.currencyCode} / DZD
-                </span>
+              <div className="flex items-center gap-2 mb-1">
+                <BellRing className="w-4 h-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70">{t.alertBannerHitTitle}</span>
               </div>
-              <h4 className="text-sm font-extrabold text-white mt-0.5">
-                {t.alertBannerHitDesc} {alert.targetRate.toFixed(1)} {daUnit} {getMarketName(alert.marketType)} !
+              <h4 className="text-sm font-bold leading-tight opacity-80">
+                {alert.currencyCode} : {alert.targetRate.toFixed(1)} {daUnit} atteint !
               </h4>
-              {alert.note && (
-                <p className="text-xs text-slate-300 mt-0.5">
-                  📝 {isAr ? 'ملاحظة :' : 'Note :'} <em>{alert.note}</em>
-                </p>
-              )}
+              <p className="mt-1.5 flex items-baseline gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider opacity-70">{isAr ? 'السعر الحالي :' : 'Prix actuel :'}</span>
+                <span className="text-2xl font-black font-mono tracking-tighter">{getRateForAlert(data!, alert.currencyCode, alert.marketType).toFixed(1)} <span className="text-xs font-normal opacity-70">{daUnit}</span></span>
+              </p>
+            </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onOpenAlertsModal}
+                className="px-6 py-2.5 rounded-xl bg-slate-950 text-white text-xs font-black uppercase tracking-widest active:scale-95 transition-all"
+              >
+                {t.alertBannerManageBtn}
+              </button>
+
+              <button
+                onClick={() => onDismissAlert(alert.id)}
+                className="p-2.5 rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-            <button
-              onClick={onOpenAlertsModal}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer active:scale-95 shadow"
-            >
-              <span>{t.alertBannerManageBtn}</span>
-              {isAr ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
-            </button>
-
-            <button
-              onClick={() => onDismissAlert(alert.id)}
-              title="Fermer cette notification"
-              className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

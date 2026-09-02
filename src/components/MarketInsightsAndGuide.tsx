@@ -1,93 +1,99 @@
 import React, { useState } from 'react';
-import { HelpCircle, ChevronDown, ChevronUp, BookOpen, Lightbulb, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ChevronDown, ChevronUp, BookOpen, Lightbulb } from 'lucide-react';
 import { MarketInsight } from '../types';
 import { Language, translations } from '../utils/translations';
 
 interface MarketInsightsAndGuideProps {
   insights: MarketInsight[];
+  theme: 'light' | 'dark';
   language: Language;
 }
 
-export const MarketInsightsAndGuide: React.FC<MarketInsightsAndGuideProps> = ({ insights, language }) => {
+export const MarketInsightsAndGuide: React.FC<MarketInsightsAndGuideProps> = ({ insights, theme, language }) => {
   const t = translations[language];
   const isAr = language === 'ar';
+  const isDark = theme === 'dark';
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   const faqs = isAr
     ? [
         {
           question: "لماذا يوجد فارق كبير بين السعر الرسمي للبنك وسوق السكوار ؟",
-          answer: "تعتمد الجزائر نظاماً صارماً للرقابة على الصرف. منحة السفر السياحية القانونية الممنوحة للمواطنين عبر البنوك محددة بما يعادل 15,000 دج سنوياً (حوالي 95 إلى 100 يورو). لتغطية نفقات السفر، العلاج، الدراسة بالخارج، أو استيراد السلع، يلجأ المواطنون والتجار إلى السوق الموازي (السكوار) أين يتحكم قانون العرض والطلب المباشر في تحديد السعر.",
+          answer: "تعتمد الجزائر نظاماً صارماً للرقابة على الصرف. منحة السفر السياحية التي تقدمها البنوك (750 يورو سنوياً) لا تكفي لاحتياجات المواطنين من سفر وعلاج وتجارة. هذا النقص في العرض الرسمي يدفع الجميع نحو السوق الموازي، أين يخضع السعر حصرياً لقانون العرض والطلب وحجم السيولة المتوفرة.",
         },
         {
-          question: "كيف تتم معاملات العملات الرقمية (USDT، وايز Wise، بايسيرا Paysera) في الجزائر ؟",
-          answer: "تتم المبادلات بطريقة الند للند (P2P). يقوم البائع بتحويل رصيد اليورو أو الدولار مباشرة إلى حساب المشتري في Wise أو بايسيرا أو تحرير USDT على Binance، بينما يقوم المشتري بدفع المقابل بالدينار الجزائري فورياً عبر تطبيق بريدي موب BaridiMob أو حوالة CCP.",
+          question: "كيف تتم معاملات الأرصدة الرقمية في الجزائر ؟",
+          answer: "تتم المبادلات بنظام الند للند، حيث يرسل البائع رصيد العملة الصعبة من حسابه البنكي الأجنبي إلى حساب المشتري مباشرة. وفي المقابل، يتم دفع القيمة بالدينار الجزائري عبر تطبيق بريدي موب أو الحوالات البريدية، وفي حالات المبالغ الضخمة يفضل المتعاملون التبادل نقداً يداً بيد لضمان الأمان.",
         },
         {
-          question: "ما هي الحدود اليومية للتحويل عبر تطبيق بريدي موب ؟",
-          answer: "يسمح بريد الجزائر بإجراء تحويلات حتى 200,000 دج (20 مليون سنتيم) يومياً عبر تطبيق بريدي موب. للمبالغ الأكبر من ذلك، تتم المعاملات عبر مكاتب البريد (CCP) أو نقداً يداً بيد.",
+          question: "لماذا سعر اليورو الرقمي أغلى من اليورو الورقي ؟",
+          answer: "الأرصدة الرقمية في وايز أو بايسيرا هي أموال مودعة فعلياً في بنوك أوروبية، مما يجعلها الأداة الوحيدة المتاحة للجزائريين لاستيراد السيارات أقل من 3 سنوات من أوروبا والصين. فهي تسمح بسداد ثمن المركبة للمورد الأجنبي فوراً وبكل أمان، على عكس العملة الورقية التي يصعب نقلها دولياً وتخضع لقيود جمركية مشددة عند السفر.",
         },
         {
-          question: "لماذا تحظى البطاقات الدولية (Wise، بايسيرا، ريدوت باي) بشعبية كبيرة ؟",
-          answer: "تمنح الجزائريين بطاقات فيزا وماستركارد حقيقية للشراء من AliExpress و Shein، حجز الفنادق وتذاكر الطيران، تمويل الإعلانات الممولة (Facebook Ads, TikTok)، واستلام مستحقات العمل الحر (Freelance).",
+          question: "لماذا تحظى البطاقات الدولية مثل بايسيرا وريدوت باي بشعبية كبيرة ؟",
+          answer: "هذه البطاقات تمنح الجزائريين هوية مصرفية دولية، مما يتيح لهم الشراء من المواقع العالمية، حجز الفنادق، تمويل الإعلانات الممولة على شبكات التواصل الاجتماعي، واستلام أجور العمل الحر من الخارج دون أي عوائق تقنية أو إدارية محلية.",
         },
         {
-          question: "كيف يتم حساب السنتيم والملايين في الجزائر ؟",
-          answer: "في الجزائر، التداول اليومي يتم بالسنتيم (1 دينار = 100 سنتيم). بالتالي: 1,000 دج = 100 ألف سنتيم (مية ألف)، 10,000 دج = 1 مليون سنتيم (مليون)، و 100,000 دج = 10 ملايين سنتيم (عشرة ملايين). في السكوار، 100 يورو بسعر 25,250 دج تعني 'مليونين و525 ألف سنتيم'.",
+          question: "كيف يتم حساب السنتيم والملايين في سوق الصرف ؟",
+          answer: "التداول اليومي يتم بالسنتيم لسهولة الحساب. فمثلاً: 1,000 دينار تساوي 'مية ألف سنتيم'، و 10,000 دينار تساوي 'مليون سنتيم'. عندما يكون سعر اليورو 276.0، فإن 100 يورو تعادل 'مليونين و760 ألف سنتيم'.",
         },
       ]
     : [
         {
-          question: "Pourquoi existe-t-il un tel écart entre le cours officiel et le Square Port-Saïd ?",
-          answer: "L'Algérie applique un système de contrôle des changes strict. L'allocation touristique légale accordée aux citoyens par les banques est plafonnée à l'équivalent de 15 000 DA (environ 95 € à 100 € par an). Pour voyager, faire des études à l'étranger, soigner des proches ou importer des marchandises hors circuits officiels, les citoyens et commerçants se tournent vers le marché parallèle (Square), où le prix est dicté par la loi de l'offre et de la demande.",
+          question: "Pourquoi existe-t-il un tel écart entre le cours officiel et le Square ?",
+          answer: "L'Algérie applique un contrôle des changes strict. L'allocation touristique de 750 € par an est insuffisante pour couvrir les besoins réels (voyages, santé, importations). Cette pénurie de devises au guichet bancaire reporte toute la demande sur le marché parallèle du Square Port-Saïd, où le prix est fixé par l'équilibre entre l'offre et la demande.",
         },
         {
-          question: "Comment fonctionnent les devises virtuelles (USDT, Wise, Paysera, RedotPay) en Algérie ?",
-          answer: "Les devises virtuelles et les soldes néobanques sont échangés de pair-à-pair (P2P). Le vendeur transfère les Euros/Dollars directement sur le compte Wise/Paysera de l'acheteur ou libère des USDT sur Binance, tandis que l'acheteur effectue un virement instantané en Dinars Algériens via l'application BaridiMob ou par mandat CCP.",
+          question: "Comment fonctionnent les échanges de soldes numériques (P2P) ?",
+          answer: "Les transactions s'effectuent de pair-à-pair. Le vendeur crédite le compte bancaire étranger de l'acheteur (Wise, Paysera, etc.) et l'acheteur règle la contrepartie en Dinars Algériens. Le paiement se fait via virement BaridiMob, mandat CCP ou en espèces (main à main) pour sécuriser les transactions de montants importants.",
         },
         {
-          question: "Quels sont les plafonds de transfert BaridiMob pour l'achat de devises ?",
-          answer: "Algérie Poste permet un transfert jusqu'à 200 000 DA (20 Millions de centimes) par jour et par compte via l'application BaridiMob. Pour des montants supérieurs, les transactions se font par virement de compte à compte au bureau de poste (CCP) ou de main à main en espèces.",
+          question: "Pourquoi l'Euro digital est-il plus cher que l'Euro physique ?",
+          answer: "L'Euro numérique réside déjà dans des banques étrangères, ce qui en fait le levier indispensable pour l'importation de véhicules de moins de 3 ans. Il permet de régler les fournisseurs en Europe ou en Chine instantanément par virement international. Cette utilité logistique, impossible avec des billets physiques soumis aux limites douanières et aux risques de transport, justifie son prix premium.",
         },
         {
-          question: "Pourquoi les banques non algériennes (Wise, Paysera, RedotPay) sont-elles si populaires ?",
-          answer: "Elles permettent aux Algériens d'obtenir des cartes Visa/Mastercard internationales pour payer sur AliExpress, Shein, réserver des hôtels sur Booking, sponsoriser des publicités sur Facebook/Instagram/TikTok, ou recevoir des salaires freelance (Upwork, Fiverr) sans blocage bancaire.",
+          question: "Quelle est l'utilité des banques en ligne comme Wise ou RedotPay ?",
+          answer: "Elles offrent aux Algériens des moyens de paiement internationaux pour le commerce en ligne (AliExpress), le sponsoring publicitaire et les abonnements. Elles permettent aussi aux freelances de recevoir leurs honoraires en devises et de les utiliser librement à l'international sans passer par le système bancaire local.",
         },
         {
-          question: "Comment comprendre les 'Centimes' (Millions / Mlayen) en Algérie ?",
-          answer: "En Algérie, les prix du quotidien s'expriment en Centimes (1 Dinar = 100 Centimes). Ainsi, 1 000 DA = 100 000 Centimes (Miat Alef), 10 000 DA = 1 Million de centimes (Mlyoun), et 100 000 DA = 10 Millions de centimes (Achra Mlayen). Au Square, quand on dit que 100 € valent '25 000 DA', cela correspond à '2 Millions 500 Mille Centimes'.",
+          question: "Comment comprendre la conversion en Centimes (Mlayen) ?",
+          answer: "En Algérie, les prix s'expriment couramment en Centimes (1 DA = 100 Centimes). Par exemple, 10 000 DA équivalent à '1 Million de centimes'. Au cours actuel de 276.0, une coupure de 100 € s'échange pour '2 Millions 760 Mille Centimes'.",
         },
       ];
 
   return (
     <section id="market-guide-section" className="mb-10">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Market Insights & News */}
-        <div className="lg:col-span-5 rounded-3xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl flex flex-col justify-between">
+        {/* Left: Market Insights */}
+        <div className={`lg:col-span-5 rounded-[2.5rem] border p-8 shadow-xl flex flex-col justify-between ${
+          isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
           <div>
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-6">
               <Lightbulb className="w-5 h-5 text-amber-400" />
-              <h3 className="text-lg font-bold text-white">
-                {isAr ? 'عوامل واتجاهات سوق الصرف الجزائري' : 'Facteurs & Tendances du Marché DZ'}
+              <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {isAr ? 'اتجاهات السوق' : 'Analyses du Marché'}
               </h3>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {insights.map((item) => (
                 <div
                   key={item.id}
-                  className="rounded-2xl bg-slate-950/60 border border-slate-800 p-4 hover:border-slate-700 transition-all"
+                  className={`rounded-2xl border p-4 transition-all ${
+                    isDark ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700' : 'bg-slate-50 border-slate-100 hover:border-amber-200 shadow-sm'
+                  }`}
                 >
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${isDark ? 'bg-slate-800 text-slate-400' : 'bg-white text-slate-500 shadow-sm'}`}>
                       {item.category}
                     </span>
-                    <span className="text-[11px] text-slate-400">{item.date}</span>
+                    <span className="text-[10px] font-bold text-slate-500">{item.date}</span>
                   </div>
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-100 mb-1">
+                  <h4 className={`text-sm font-bold mb-1 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
                     {item.title}
                   </h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
                     {item.summary}
                   </p>
                 </div>
@@ -97,40 +103,50 @@ export const MarketInsightsAndGuide: React.FC<MarketInsightsAndGuideProps> = ({ 
         </div>
 
         {/* Right: FAQ Guide */}
-        <div className="lg:col-span-7 rounded-3xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="w-5 h-5 text-emerald-400" />
+        <div className={`lg:col-span-7 rounded-[2.5rem] border p-8 shadow-xl ${
+          isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+        }`}>
+          <div className="flex items-center gap-4 mb-6">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'}`}>
+               <BookOpen className="w-6 h-6 text-emerald-500" />
+            </div>
             <div>
-              <h3 className="text-lg font-bold text-white">
-                {isAr ? 'دليل وإجابات حول سوق الصرف في الجزائر' : 'Guide Pratique : Comprendre le Marché de Change'}
+               <h3 className={`text-lg font-black uppercase tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {isAr ? 'دليل التعاملات' : 'Guide Pratique'}
               </h3>
-              <p className="text-xs text-slate-400">
-                {isAr ? 'كل ما تحتاج معرفته عن السكوار، بريدي موب، بنك الجزائر والسنتيم' : 'Tout comprendre sur le Square, BaridiMob, la Banque d\'Algérie et les Centimes'}
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                {isAr ? 'فهم آليات سوق الصرف في الجزائر' : 'Comprendre le fonctionnement du marché'}
               </p>
             </div>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {faqs.map((faq, idx) => {
               const isOpen = openFaq === idx;
               return (
                 <div
                   key={idx}
-                  className="rounded-2xl border border-slate-800 bg-slate-950/60 overflow-hidden transition-all"
+                  className={`rounded-2xl border transition-all ${
+                    isOpen
+                      ? (isDark ? 'bg-slate-950 border-emerald-500/30' : 'bg-slate-50 border-emerald-500/30')
+                      : (isDark ? 'bg-slate-950/40 border-slate-800' : 'bg-slate-50/50 border-slate-100')
+                  }`}
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-4 text-left flex items-center justify-between gap-3 text-xs sm:text-sm font-bold text-slate-200 hover:text-white cursor-pointer"
+                    className={`w-full p-4 text-left flex items-center justify-between gap-3 text-xs sm:text-sm font-bold cursor-pointer ${
+                      isDark ? 'text-slate-200 hover:text-white' : 'text-slate-700 hover:text-slate-900'
+                    }`}
                   >
                     <span>{faq.question}</span>
                     {isOpen ? (
                       <ChevronUp className="w-4 h-4 text-emerald-400 shrink-0" />
                     ) : (
-                      <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                     )}
                   </button>
                   {isOpen && (
-                    <div className="px-4 pb-4 pt-1 text-xs text-slate-400 leading-relaxed border-t border-slate-900">
+                    <div className={`px-4 pb-4 pt-1 text-xs leading-relaxed border-t ${isDark ? 'text-slate-400 border-slate-800' : 'text-slate-600 border-slate-100'}`}>
                       {faq.answer}
                     </div>
                   )}

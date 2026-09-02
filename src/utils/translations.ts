@@ -160,18 +160,36 @@ export interface Translations {
   // Footer & Notices
   footerDisclaimer: string;
   footerRights: string;
+
+  // Regional Markets
+  cityAlger: string;
+  locAlger: string;
+  cityOran: string;
+  locOran: string;
+  cityConstantine: string;
+  locConstantine: string;
+  citySetif: string;
+  locSetif: string;
+  cityAnnaba: string;
+  locAnnaba: string;
+  cityTiziOuzou: string;
+  locTiziOuzou: string;
+  cityBejaia: string;
+  locBejaia: string;
+  cityBatna: string;
+  locBatna: string;
 }
 
 export const translations: Record<Language, Translations> = {
   fr: {
-    appName: 'DinarDZ',
+    appName: 'DZ EXCHANGE',
     appSubtitle: 'Square Port-Saïd • Devises Virtuelles BaridiMob • Banque d\'Algérie',
     threePillarsBadge: '3 Piliers du Marché',
     liveBadge: 'En Direct :',
     square100Eur: 'Square 100€ :',
     square100Usd: 'Square 100$ :',
-    usdtP2p: 'USDT P2P :',
-    wiseEur: 'Wise € :',
+    usdtP2p: 'USDT (P2P) :',
+    wiseEur: 'Wise Euro :',
     parallelGap: 'Écart Parallèle :',
     lastUpdated: 'Mise à jour :',
     dailyUpdate: 'Quotidienne',
@@ -189,15 +207,15 @@ export const translations: Record<Language, Translations> = {
     pillar1Subtitle: 'Marché Parallèle / Informel',
     pillar1HandToHand: 'Échange physique de main à main',
     pillar2Badge: 'Pilier 2 : BaridiMob / P2P',
-    pillar2Title: 'Devises Virtuelles',
-    pillar2Subtitle: 'USDT, Wise & Cartes Visa/Mastercard',
-    pillar2BaridiMobInfo: 'Règlement instantané BaridiMob / CCP',
-    pillar2AliExpressInfo: 'AliExpress, Pub Ads & Freelance',
+    pillar2Title: 'Euro & Dollar Digital',
+    pillar2Subtitle: 'Soldes Wise, Paysera & USDT',
+    pillar2BaridiMobInfo: 'Transfert instantané P2P',
+    pillar2AliExpressInfo: 'Idéal pour AliExpress & Publicité Ads',
     pillar3Badge: 'Pilier 3 : Bancaire',
     pillar3Title: 'Banque d\'Algérie',
     pillar3Subtitle: 'Marché Officiel / Interbancaire',
     pillar3BankNotice: 'Allocation voyage & Commerce',
-    pillar3BankDesc: 'Allocation touristique légale (15 000 DA), scolarité & crédits documentaires (LC).',
+    pillar3BankDesc: 'Allocation touristique réglementée (750 € par an via carte bancaire), scolarité & crédits documentaires (LC).',
     pillar3DailyFixing: 'Fixing officiel quotidien',
     pillar3BankCounters: 'Guichets bancaires',
     squareGap: 'Écart Square :',
@@ -222,14 +240,14 @@ export const translations: Record<Language, Translations> = {
     resSquareBadge: 'Taux Réel Espèces',
     resBankTitle: 'Banque d\'Algérie',
     resBankBadge: 'Officiel',
-    resVirtualTitle: 'Solde Virtuel & Néobanques',
-    resVirtualBadge: 'Digital / P2P',
+    resVirtualTitle: 'Wise / Paysera / Digital',
+    resVirtualBadge: 'Taux Numérique',
     valInDinars: 'Valeur en Dinars (Vente au cambiste) :',
     amountObtained: 'Montant obtenu en devises :',
     valAtBank: 'Valeur au guichet bancaire :',
     valOfficialTheory: 'Montant théorique officiel :',
-    valBaridiMobRecharge: 'Recharge / Vente BaridiMob :',
-    valDigitalNet: 'Montant digital net reçu :',
+    valBaridiMobRecharge: 'Valeur Euro/USD Digital :',
+    valDigitalNet: 'Montant net reçu (Wise/USDT) :',
     rateApplied: 'Cours appliqué :',
     rateOfficialMid: 'Cours officiel moyen :',
     gapWithSquare: 'Différence avec le Square :',
@@ -314,16 +332,33 @@ export const translations: Record<Language, Translations> = {
 
     footerDisclaimer: 'Avertissement : Les cours du marché parallèle (Square Port-Saïd) et des devises virtuelles sont donnés à titre indicatif selon les moyennes constatées sur les places d\'échange et plateformes P2P.',
     footerRights: 'DinarDZ Exchange Tracker • Algérie • Taux de Change Temps Réel',
+
+    cityAlger: 'Alger',
+    locAlger: 'Square Port-Saïd & Rue Abane Ramdane',
+    cityOran: 'Oran',
+    locOran: 'Mdina Jdida & Rue Larbi Ben M\'hidi',
+    cityConstantine: 'Constantine',
+    locConstantine: 'Souk El Asser & Souk Dubaï',
+    citySetif: 'Sétif',
+    locSetif: 'El Eulma (Bourse Dubaï & Commerce Gros)',
+    cityAnnaba: 'Annaba',
+    locAnnaba: 'Cours de la Révolution',
+    cityTiziOuzou: 'Tizi Ouzou',
+    locTiziOuzou: 'Boulevard Stiti & Centre Ville',
+    cityBejaia: 'Béjaïa',
+    locBejaia: 'Place du 1er Novembre',
+    cityBatna: 'Batna',
+    locBatna: 'Aures Market',
   },
   ar: {
-    appName: 'دينار ديزاد DinarDZ',
+    appName: 'ديزاد إكسشينج DZ EXCHANGE',
     appSubtitle: 'سكوار بورسعيد • العملات الرقمية وبريدي موب • بنك الجزائر الرسمي',
     threePillarsBadge: 'الركائز الـ 3 لسوق الصرف',
     liveBadge: 'مباشر الآن :',
     square100Eur: 'السكوار 100€ :',
     square100Usd: 'السكوار 100$ :',
-    usdtP2p: 'USDT بريدي موب :',
-    wiseEur: 'وايز Wise € :',
+    usdtP2p: 'USDT (رقمي) :',
+    wiseEur: 'وايز Wise يورو :',
     parallelGap: 'الفارق الموازي :',
     lastUpdated: 'آخر تحديث :',
     dailyUpdate: 'يومي',
@@ -341,15 +376,15 @@ export const translations: Record<Language, Translations> = {
     pillar1Subtitle: 'السوق الموازي / غير الرسمي (كاش)',
     pillar1HandToHand: 'تبادل يد بيد بالعملة النقدية',
     pillar2Badge: 'الركيزة 2 : بريدي موب / P2P',
-    pillar2Title: 'العملات الرقمية والنئوبنوك',
-    pillar2Subtitle: 'USDT ، وايز Wise وبطاقات فيزا وماستركارد',
-    pillar2BaridiMobInfo: 'دفع فوري عبر تطبيق بريدي موب و CCP',
-    pillar2AliExpressInfo: 'شراء من AliExpress، إعلانات وعمل حر',
+    pillar2Title: 'يورو ودولار رقمي',
+    pillar2Subtitle: 'رصيد وايز، بايسيرا و USDT',
+    pillar2BaridiMobInfo: 'تحويل فوري بين الحسابات',
+    pillar2AliExpressInfo: 'مثالي للشراء من الإنترنت والإعلانات',
     pillar3Badge: 'الركيزة 3 : بنكي رسمي',
     pillar3Title: 'بنك الجزائر',
     pillar3Subtitle: 'السعر الرسمي / بين البنوك',
     pillar3BankNotice: 'منحة السفر والتجارة الخارجية',
-    pillar3BankDesc: 'منحة السفر السياحية الرسمية (15 ألف دج)، الدراسة في الخارج والاعتمادات المستندية.',
+    pillar3BankDesc: 'منحة السفر السياحية المنظمة (750 يورو سنوياً عبر البطاقة البنكية)، الدراسة في الخارج والاعتمادات المستندية.',
     pillar3DailyFixing: 'التسعيرة اليومية الرسمية',
     pillar3BankCounters: 'الشبابيك البنكية',
     squareGap: 'فارق السكوار :',
@@ -374,14 +409,14 @@ export const translations: Record<Language, Translations> = {
     resSquareBadge: 'سعر الكاش الحقيقي',
     resBankTitle: 'بنك الجزائر',
     resBankBadge: 'رسمي',
-    resVirtualTitle: 'الأرصدة الرقمية والنئوبنوك',
-    resVirtualBadge: 'رقمي / بريدي موب',
+    resVirtualTitle: 'وايز / بايسيرا / رقمي',
+    resVirtualBadge: 'سعر الرصيد الرقمي',
     valInDinars: 'القيمة بالدينار (البيع للصراف) :',
     amountObtained: 'المبلغ المحصل بالعملة الأجنبية :',
     valAtBank: 'القيمة لدى البنك الرسمي :',
     valOfficialTheory: 'المبلغ النظري الرسمي :',
-    valBaridiMobRecharge: 'شحن / بيع عبر بريدي موب :',
-    valDigitalNet: 'الرصيد الرقمي الصافي المستلم :',
+    valBaridiMobRecharge: 'قيمة اليورو/الدولار الرقمي :',
+    valDigitalNet: 'الرصيد الصافي المستلم (وايز/USDT) :',
     rateApplied: 'سعر الصرف المعتمد :',
     rateOfficialMid: 'سعر الصرف البنكي الوسطي :',
     gapWithSquare: 'الفارق مقارنة بالسكوار :',
@@ -466,5 +501,22 @@ export const translations: Record<Language, Translations> = {
 
     footerDisclaimer: 'تنبيه: أسعار السوق الموازي (سكوار بورسعيد) والعملات الرقمية مبنية على المتوسطات الحقيقية المتداولة في ساحات الصرف وتطبيقات P2P للاسترشاد.',
     footerRights: 'دينار ديزاد DinarDZ Exchange Tracker • الجزائر • أسعار الصرف لحظة بلحظة',
+
+    cityAlger: 'الجزائر العاصمة',
+    locAlger: 'ساحة بورسعيد (السكوار)',
+    cityOran: 'وهران الباهية',
+    locOran: 'ساحة أول نوفمبر / المدينة الجديدة',
+    cityConstantine: 'قسنطينة',
+    locConstantine: 'باب الوادي / وسط المدينة',
+    citySetif: 'سطيف العالي',
+    locSetif: 'محيط عين الفوارة والسوق',
+    cityAnnaba: 'عنابة',
+    locAnnaba: 'شارع الثورة (الكور)',
+    cityTiziOuzou: 'تيزي وزو',
+    locTiziOuzou: 'الشارع الرئيسي ووسط المدينة',
+    cityBejaia: 'بجاية',
+    locBejaia: 'ساحة أول نوفمبر والميناء',
+    cityBatna: 'باتنة',
+    locBatna: 'سوق الأوراس ووسط المدينة',
   },
 };

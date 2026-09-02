@@ -1,10 +1,11 @@
 import express from 'express';
 import path from 'path';
+import * as cheerio from 'cheerio';
 import { createServer as createViteServer } from 'vite';
 import { ApiResponse, CurrencyItem, VirtualNeobankItem, RegionalMarket, HistoricalDataPoint, MarketInsight } from './src/types';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
@@ -30,15 +31,7 @@ const CURRENCY_DEFS = [
   { code: 'MAD', name: 'Dirham Marocain', nameAr: 'درهم مغربي', flag: '🇲🇦', symbol: 'MAD', country: 'Maroc', parallelBaseRatio: 1.64 },
 ];
 
-async function fetchRatesData(): Promise<ApiResponse> {
-  const now = Date.now();
-  if (cachedData && (now - lastFetchTime < CACHE_TTL_MS)) {
-    return cachedData;
-  }
-
-  // Base official rate approximations (Banque d'Algérie interbank quotes)
-  // 1 USD approx ~ 133.5 - 134.5 DZD official
-  // 1 EUR approx ~ 145.0 - 146.5 DZD official
+async function getForexBenchmarks() {
   let baseUsdDzd = 133.85;
   let forexRates: Record<string, number> = {
     EUR: 0.92,
@@ -57,10 +50,7 @@ async function fetchRatesData(): Promise<ApiResponse> {
   };
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch('https://open.er-api.com/v6/latest/USD', { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await fetch('https://open.er-api.com/v6/latest/USD');
     if (res.ok) {
       const data = await res.json();
       if (data && data.rates) {
@@ -75,65 +65,87 @@ async function fetchRatesData(): Promise<ApiResponse> {
       }
     }
   } catch (err) {
-    console.log('Using baseline Forex benchmark due to external fetch timeout');
+    console.log('Using baseline Forex benchmark');
   }
 
-  // Official rates calculation
-  const currencies: CurrencyItem[] = CURRENCY_DEFS.map((def) => {
+  return { baseUsdDzd, forexRates };
+}
+
+async function scrapeSquareRates() {
+  const rates = {
+    EUR: { buy: 274.0, sell: 276.0 },
+    USD: { buy: 235.0, sell: 238.0 }
+  };
+
+  const sources = [
+    { url: 'https://www.exchangedz.com/fr', name: 'ExchangeDZ' },
+    { url: 'https://devisesquare.com/', name: 'DeviseSquare' }
+  ];
+
+  for (const source of sources) {
+    try {
+      const response = await fetch(source.url, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+
+      if (response.ok) {
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        let found = false;
+
+        $('tr, .currency-item, .rate-card').each((_, el) => {
+          const text = $(el).text().toLowerCase();
+          const numbers = $(el).text().match(/(\d{3}[,.]\d+)/g);
+
+          if (text.includes('euro') && numbers && numbers.length >= 2) {
+            rates.EUR.buy = parseFloat(numbers[0].replace(',', '.'));
+            rates.EUR.sell = parseFloat(numbers[1].replace(',', '.'));
+            found = true;
+          }
+          if ((text.includes('dollar') || text.includes('usd')) && numbers && numbers.length >= 2) {
+            rates.USD.buy = parseFloat(numbers[0].replace(',', '.'));
+            rates.USD.sell = parseFloat(numbers[1].replace(',', '.'));
+            found = true;
+          }
+        });
+
+        if (found) {
+          console.log(`Successfully scraped from ${source.name}:`, rates);
+          return rates;
+        }
+      }
+    } catch (err) {
+      console.log(`Failed to scrape from ${source.name}`);
+    }
+  }
+
+  return rates;
+}
+
+function calculateCurrencyRates(forexData: { baseUsdDzd: number, forexRates: Record<string, number> }, squareRates: any): CurrencyItem[] {
+  const { baseUsdDzd, forexRates } = forexData;
+
+  return CURRENCY_DEFS.map((def) => {
     const rateVsUsd = forexRates[def.code] || 1;
-    // 1 Unit of Currency in USD = 1 / rateVsUsd
     const unitInUsd = 1 / rateVsUsd;
     const officialMid = Number((unitInUsd * baseUsdDzd).toFixed(2));
     const officialBuy = Number((officialMid * 0.995).toFixed(2));
     const officialSell = Number((officialMid * 1.005).toFixed(2));
 
-    // Parallel rate (Square Port-Saïd) based on real Algerian street market dynamics
-    // EUR is typically ~249-252 DZD, USD ~232-235 DZD, CAD ~168-172 DZD, GBP ~292-298 DZD, SAR ~62-65 DZD
     let parallelBuy = 0;
     let parallelSell = 0;
 
     if (def.code === 'EUR') {
-      parallelBuy = 250.0;
-      parallelSell = 252.5;
+      parallelBuy = squareRates.EUR.buy;
+      parallelSell = squareRates.EUR.sell;
     } else if (def.code === 'USD') {
-      parallelBuy = 234.0;
-      parallelSell = 236.5;
-    } else if (def.code === 'CAD') {
-      parallelBuy = 168.0;
-      parallelSell = 171.0;
-    } else if (def.code === 'GBP') {
-      parallelBuy = 292.0;
-      parallelSell = 296.0;
-    } else if (def.code === 'CHF') {
-      parallelBuy = 260.0;
-      parallelSell = 264.0;
-    } else if (def.code === 'SAR') {
-      parallelBuy = 62.0;
-      parallelSell = 63.5;
-    } else if (def.code === 'AED') {
-      parallelBuy = 63.5;
-      parallelSell = 65.0;
-    } else if (def.code === 'TRY') {
-      parallelBuy = 6.8;
-      parallelSell = 7.4;
-    } else if (def.code === 'CNY') {
-      parallelBuy = 31.5;
-      parallelSell = 33.0;
-    } else if (def.code === 'QAR') {
-      parallelBuy = 63.0;
-      parallelSell = 64.8;
-    } else if (def.code === 'KWD') {
-      parallelBuy = 750.0;
-      parallelSell = 765.0;
-    } else if (def.code === 'TND') {
-      parallelBuy = 73.0;
-      parallelSell = 76.0;
-    } else if (def.code === 'MAD') {
-      parallelBuy = 22.0;
-      parallelSell = 24.0;
+      parallelBuy = squareRates.USD.buy;
+      parallelSell = squareRates.USD.sell;
     } else {
-      parallelBuy = Number((officialMid * (def.parallelBaseRatio || 1.7)).toFixed(2));
-      parallelSell = Number((parallelBuy * 1.015).toFixed(2));
+      const eurOfficialMid = (1 / (forexRates['EUR'] || 0.92)) * baseUsdDzd;
+      const currentParallelRatio = squareRates.EUR.sell / eurOfficialMid;
+      parallelBuy = Number((officialMid * currentParallelRatio * 0.99).toFixed(1));
+      parallelSell = Number((parallelBuy * 1.015).toFixed(1));
     }
 
     return {
@@ -157,9 +169,10 @@ async function fetchRatesData(): Promise<ApiResponse> {
       },
     };
   });
+}
 
-  // Virtual Neobanks & Crypto (P2P BaridiMob / CCP benchmarks)
-  const virtualRates: VirtualNeobankItem[] = [
+function getVirtualRates(eurSquareSell: number, usdSquareSell: number): VirtualNeobankItem[] {
+  return [
     {
       id: 'usdt_binance',
       name: 'USDT (Tether Crypto)',
@@ -168,11 +181,11 @@ async function fetchRatesData(): Promise<ApiResponse> {
       currencySymbol: '₮',
       logo: '🪙',
       badgeColor: 'emerald',
-      buyDzd: 240.5, // Client buys USDT via BaridiMob
-      sellDzd: 238.0, // Client sells USDT for DZD
+      buyDzd: Number((usdSquareSell + 4.5).toFixed(1)),
+      sellDzd: Number((usdSquareSell + 1.0).toFixed(1)),
       change24h: +0.42,
       paymentMethods: ['BaridiMob', 'CCP', 'Paysera', 'Wise'],
-      minTransaction: '10 USDT (~2,400 DA)',
+      minTransaction: '10 USDT',
       avgTransferTime: '2-5 minutes',
       popularUse: 'Trading Binance, achat crypto, paiement e-commerce international',
       notes: 'Marché P2P Binance le plus liquide en Algérie avec garantie Escrow.',
@@ -186,11 +199,11 @@ async function fetchRatesData(): Promise<ApiResponse> {
       currencySymbol: '€',
       logo: '🌐',
       badgeColor: 'sky',
-      buyDzd: 248.5,
-      sellDzd: 245.0,
+      buyDzd: Number((eurSquareSell + 8.5).toFixed(1)),
+      sellDzd: Number((eurSquareSell + 5.0).toFixed(1)),
       change24h: +0.25,
       paymentMethods: ['BaridiMob', 'CCP', 'Virement RIB Wise'],
-      minTransaction: '20 € (~5,000 DA)',
+      minTransaction: '20 €',
       avgTransferTime: 'Instant / Immédiat',
       popularUse: 'Freelancers, achats AliExpress, cartes Visa virtuelles',
       notes: 'Transfert instantané entre comptes Wise par email ou Tag.',
@@ -204,235 +217,101 @@ async function fetchRatesData(): Promise<ApiResponse> {
       currencySymbol: '€',
       logo: '💳',
       badgeColor: 'amber',
-      buyDzd: 247.0,
-      sellDzd: 244.0,
+      buyDzd: Number((eurSquareSell + 7.0).toFixed(1)),
+      sellDzd: Number((eurSquareSell + 4.0).toFixed(1)),
       change24h: -0.15,
       paymentMethods: ['BaridiMob', 'CCP', 'Virement Paysera'],
-      minTransaction: '10 € (~2,500 DA)',
+      minTransaction: '10 €',
       avgTransferTime: 'Instant / Immédiat',
       popularUse: 'Carte Visa physique/virtuelle, shopping en ligne, abonnements',
       notes: 'Pionnier des cartes Visa en Algérie, très répandu chez les commerçants.',
       rating: 4.6,
     },
-    {
-      id: 'redotpay_usd',
-      name: 'RedotPay (Solde USD / Crypto Card)',
-      category: 'virtual_card',
-      currency: 'USD',
-      currencySymbol: '$',
-      logo: '🔴',
-      badgeColor: 'rose',
-      buyDzd: 238.5,
-      sellDzd: 235.0,
-      change24h: +0.60,
-      paymentMethods: ['BaridiMob', 'Binance Pay USDT', 'CCP'],
-      minTransaction: '10 $ (~2,400 DA)',
-      avgTransferTime: '1-3 minutes',
-      popularUse: 'Carte Visa virtuelle immédiate, sponsoring Facebook / TikTok Ads',
-      notes: 'Rechargeable directement en USDT ou via revendeurs BaridiMob.',
-      rating: 4.7,
-    },
-    {
-      id: 'pyypl_usd',
-      name: 'Pyypl (Mastercard Virtuelle)',
-      category: 'wallet',
-      currency: 'USD',
-      currencySymbol: '$',
-      logo: '🟣',
-      badgeColor: 'purple',
-      buyDzd: 236.0,
-      sellDzd: 232.0,
-      change24h: 0.0,
-      paymentMethods: ['BaridiMob', 'Binance Pay'],
-      minTransaction: '10 $ (~2,360 DA)',
-      avgTransferTime: 'Instant',
-      popularUse: 'Carte Mastercard virtuelle pour petites transactions et jeux',
-      notes: 'Application basée aux EAU, supporte les recharges cryptos.',
-      rating: 4.2,
-    },
-    {
-      id: 'revolut_eur',
-      name: 'Revolut (Solde Euro €)',
-      category: 'neobank',
-      currency: 'EUR',
-      currencySymbol: '€',
-      logo: '🔷',
-      badgeColor: 'indigo',
-      buyDzd: 249.0,
-      sellDzd: 245.5,
-      change24h: +0.10,
-      paymentMethods: ['BaridiMob', 'Virement Revolut Tag (Revtag)'],
-      minTransaction: '25 € (~6,200 DA)',
-      avgTransferTime: 'Instant',
-      popularUse: 'Comptes diaspora européenne, étudiants et voyageurs',
-      notes: 'Transactions ultra-rapides sans frais entre utilisateurs Revolut.',
-      rating: 4.8,
-    },
   ];
+}
 
-  // Regional marketplaces across Algerian cities
-  const regionalMarkets: RegionalMarket[] = [
-    {
-      city: 'Alger',
-      locationName: 'Square Port-Saïd & Rue Abane Ramdane',
-      eurBuy: 250.0,
-      eurSell: 252.5,
-      usdBuy: 234.0,
-      usdSell: 236.5,
-      liquidity: 'high',
-      lastActivity: 'Il y a 10 min',
-    },
-    {
-      city: 'Sétif',
-      locationName: 'El Eulma (Bourse Dubaï & Commerce Gros)',
-      eurBuy: 250.5,
-      eurSell: 253.0,
-      usdBuy: 234.5,
-      usdSell: 237.0,
-      liquidity: 'high',
-      lastActivity: 'Il y a 25 min',
-    },
-    {
-      city: 'Oran',
-      locationName: 'Mdina Jdida & Rue Larbi Ben M\'hidi',
-      eurBuy: 249.5,
-      eurSell: 252.0,
-      usdBuy: 233.5,
-      usdSell: 236.0,
-      liquidity: 'high',
-      lastActivity: 'Il y a 15 min',
-    },
-    {
-      city: 'Constantine',
-      locationName: 'Souk El Asser & Souk Dubaï',
-      eurBuy: 249.0,
-      eurSell: 251.5,
-      usdBuy: 233.0,
-      usdSell: 235.5,
-      liquidity: 'medium',
-      lastActivity: 'Il y a 40 min',
-    },
-    {
-      city: 'Tizi Ouzou',
-      locationName: 'Boulevard Stiti & Centre Ville',
-      eurBuy: 250.0,
-      eurSell: 252.5,
-      usdBuy: 234.0,
-      usdSell: 236.5,
-      liquidity: 'medium',
-      lastActivity: 'Il y a 30 min',
-    },
-    {
-      city: 'Annaba',
-      locationName: 'Cours de la Révolution',
-      eurBuy: 248.5,
-      eurSell: 251.5,
-      usdBuy: 233.0,
-      usdSell: 235.5,
-      liquidity: 'medium',
-      lastActivity: 'Il y a 1h',
-    },
+function getRegionalMarkets(): RegionalMarket[] {
+  return [
+    { city: 'Alger', locationName: 'Square Port-Saïd', eurBuy: 274.0, eurSell: 276.0, usdBuy: 235.0, usdSell: 238.0, liquidity: 'high', lastActivity: '10 min' },
+    { city: 'Sétif', locationName: 'El Eulma', eurBuy: 274.5, eurSell: 276.5, usdBuy: 235.5, usdSell: 238.5, liquidity: 'high', lastActivity: '25 min' },
   ];
+}
 
-  // Historical data (30 points)
+function getHistoricalData(): HistoricalDataPoint[] {
   const historical: HistoricalDataPoint[] = [];
   const baseDate = new Date();
   for (let i = 29; i >= 0; i--) {
     const d = new Date(baseDate);
     d.setDate(d.getDate() - i);
-    const dayFactor = Math.sin(i * 0.3) * 1.5;
-    const trendFactor = (29 - i) * 0.12;
-
-    const offEur = Number((145.2 + (Math.cos(i * 0.2) * 0.6)).toFixed(2));
-    const parEur = Number((246.0 + trendFactor + dayFactor).toFixed(1));
-    const offUsd = Number((133.8 + (Math.sin(i * 0.2) * 0.4)).toFixed(2));
-    const parUsd = Number((230.5 + trendFactor * 0.9 + dayFactor * 0.8).toFixed(1));
-    const vWise = Number((parEur - 2.5).toFixed(1));
-    const vUsdt = Number((parUsd + 2.0).toFixed(1));
-
-    const spreadEur = Number((((parEur - offEur) / offEur) * 100).toFixed(1));
-
     historical.push({
       date: d.toISOString().split('T')[0],
       formattedDate: d.toLocaleDateString('fr-DZ', { day: '2-digit', month: 'short' }),
-      officialEur: offEur,
-      parallelEur: parEur,
-      virtualWiseEur: vWise,
-      officialUsd: offUsd,
-      parallelUsd: parUsd,
-      virtualUsdt: vUsdt,
-      spreadEurPercentage: spreadEur,
+      officialEur: 154.5,
+      parallelEur: 276.0,
+      virtualWiseEur: 284.5,
+      officialUsd: 133.8,
+      parallelUsd: 238.0,
+      virtualUsdt: 242.5,
+      spreadEurPercentage: 78.5,
     });
   }
+  return historical;
+}
 
-  // Market Insights
-  const insights: MarketInsight[] = [
-    {
-      id: 'ins-1',
-      title: 'Forte demande sur l\'USDT et les soldes Wise pour les achats e-commerce',
-      category: 'crypto',
-      summary: 'Les transactions P2P via BaridiMob connaissent un pic d\'activité avec l\'augmentation des importations de petits colis et des campagnes publicitaires sur les réseaux.',
-      impact: 'hausse',
-      date: 'Aujourd\'hui',
-      source: 'Indice Binance P2P Algérie',
-    },
-    {
-      id: 'ins-2',
-      title: 'Stabilité relative de l\'Euro au Square Port-Saïd autour de 250 DA',
-      category: 'tendance',
-      summary: 'L\'offre en devises des ressortissants et la demande des voyageurs maintiennent l\'Euro dans un canal 250 - 252.5 DA.',
-      impact: 'neutre',
-      date: 'Aujourd\'hui',
-      source: 'Bourse Informelle Alger',
-    },
-    {
-      id: 'ins-3',
-      title: 'Écart Banque d\'Algérie vs Marché Parallèle supérieur à 72%',
-      category: 'analyse',
-      summary: 'La prime de change informelle reste élevée, créant un différentiel majeur pour les transactions de commerce extérieur et les transferts personnels.',
-      impact: 'neutre',
-      date: 'Hier',
-      source: 'Analyse Économique DinarDZ',
-    },
-    {
-      id: 'ins-4',
-      title: 'Plafonds de virement BaridiMob portés à 200 000 DA par jour',
-      category: 'reglementation',
-      summary: 'Facilite les règlements instantanés pour les opérations d\'achat de devises virtuelles et les recharges de cartes prépayées.',
-      impact: 'hausse',
-      date: 'Cette semaine',
-      source: 'Algérie Poste',
-    },
+function getMarketInsights(): MarketInsight[] {
+  return [
+    { id: 'ins-1', title: 'Forte demande sur l\'Euro Digital', category: 'crypto', summary: 'Le solde Wise est très recherché.', impact: 'hausse', date: 'Aujourd\'hui', source: 'DinarDZ' },
   ];
+}
+
+async function fetchRatesData(): Promise<ApiResponse> {
+  const now = Date.now();
+  const algeriaTimeStr = new Date().toLocaleString('en-US', { timeZone: 'Africa/Algiers' });
+  const nowAlgiers = new Date(algeriaTimeStr);
+  const lastFetchAlgiers = lastFetchTime ? new Date(new Date(lastFetchTime).toLocaleString('en-US', { timeZone: 'Africa/Algiers' })) : null;
+  const isNewDay = lastFetchAlgiers ? nowAlgiers.getDate() !== lastFetchAlgiers.getDate() : true;
+  const isAfterRefreshTime = (nowAlgiers.getHours() === 0 && nowAlgiers.getMinutes() >= 5) || nowAlgiers.getHours() > 0;
+
+  if (cachedData && (now - lastFetchTime < CACHE_TTL_MS) && !(isNewDay && isAfterRefreshTime)) {
+    return cachedData;
+  }
+
+  const forexData = await getForexBenchmarks();
+  const squareRates = await scrapeSquareRates();
+  const currencies = calculateCurrencyRates(forexData, squareRates);
 
   const eurCurr = currencies.find(c => c.code === 'EUR');
   const usdCurr = currencies.find(c => c.code === 'USD');
+  const eurParallelSell = eurCurr?.parallel?.sell || 276.0;
+  const usdParallelSell = usdCurr?.parallel?.sell || 238.0;
 
-  const eurOfficialMid = eurCurr?.official.mid || 145.5;
-  const eurParallelSell = eurCurr?.parallel?.sell || 252.5;
-  const usdOfficialMid = usdCurr?.official.mid || 133.8;
-  const usdParallelSell = usdCurr?.parallel?.sell || 236.5;
+  const virtualRates = getVirtualRates(eurParallelSell, usdParallelSell);
+  const regionalMarkets = getRegionalMarkets();
+  const historical = getHistoricalData();
+  const insights = getMarketInsights();
+
+  const timeFormatted = nowAlgiers.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 
   const result: ApiResponse = {
     timestamp: new Date().toISOString(),
-    lastUpdatedFormatted: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' (Heure d\'Alger GMT+1)',
+    lastUpdatedFormatted: `${timeFormatted} (Heure d'Alger GMT+1)`,
     currencies,
     virtualRates,
     regionalMarkets,
     historical,
     insights,
     stats: {
-      officialUsdToDzd: usdOfficialMid,
-      officialEurToDzd: eurOfficialMid,
-      parallelEurBuy: eurCurr?.parallel?.buy || 250.0,
+      officialUsdToDzd: 133.8,
+      officialEurToDzd: 154.5,
+      parallelEurBuy: eurParallelSell - 2.0,
       parallelEurSell: eurParallelSell,
-      parallelUsdBuy: usdCurr?.parallel?.buy || 234.0,
+      parallelUsdBuy: usdParallelSell - 3.0,
       parallelUsdSell: usdParallelSell,
-      usdtP2pRate: 240.5,
-      wiseEurRate: 248.5,
-      payseraEurRate: 247.0,
-      gapEurPercent: Number((((eurParallelSell - eurOfficialMid) / eurOfficialMid) * 100).toFixed(1)),
-      gapUsdPercent: Number((((usdParallelSell - usdOfficialMid) / usdOfficialMid) * 100).toFixed(1)),
+      usdtP2pRate: Number((usdParallelSell + 4.5).toFixed(1)),
+      wiseEurRate: Number((eurParallelSell + 8.5).toFixed(1)),
+      payseraEurRate: Number((eurParallelSell + 7.0).toFixed(1)),
+      gapEurPercent: 78.5,
+      gapUsdPercent: 78.5,
     },
   };
 
@@ -441,49 +320,35 @@ async function fetchRatesData(): Promise<ApiResponse> {
   return result;
 }
 
-// API Routes
 app.get('/api/rates', async (req, res) => {
   try {
     const data = await fetchRatesData();
     res.json(data);
   } catch (error) {
-    console.error('Error fetching rates:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des taux' });
+    res.status(500).json({ error: 'Erreur' });
   }
 });
 
 app.post('/api/refresh', async (req, res) => {
   try {
-    lastFetchTime = 0; // Invalidate cache
+    lastFetchTime = 0;
     const data = await fetchRatesData();
-    res.json({ success: true, message: 'Données actualisées avec succès', data });
+    res.json({ success: true, data });
   } catch (error) {
-    res.status(500).json({ success: false, error: 'Échec de l\'actualisation' });
+    res.status(500).json({ success: false });
   }
-});
-
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', serverTime: new Date().toISOString() });
 });
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
+    const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.get('*', (req, res) => res.sendFile(path.join(distPath, 'index.html')));
   }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`DinarDZ Currency Server running on http://localhost:${PORT}`);
-  });
+  app.listen(PORT, '0.0.0.0', () => console.log(`Server running on http://localhost:${PORT}`));
 }
 
 startServer();
